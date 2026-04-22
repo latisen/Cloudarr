@@ -69,5 +69,5 @@ echo ""
 
 echo "✓ Deployment complete!"
 echo ""
-echo "Access dashboard: http://192.168.30.50:8080"
+echo "Access dashboard: http://192.168.30.60:8080"
 echo "Check logs: kubectl logs -n ${NAMESPACE} -f deployment/cloudarr-api"

@@ -128,16 +128,16 @@ kubectl port-forward -n media-system svc/cloudarr 8080:8080
 # Login: admin / <your-admin-password>
 ```
 
-Or if using LoadBalancer with `loadBalancerIP: 192.168.30.50`:
+Or if using LoadBalancer with `loadBalancerIP: 192.168.30.60`:
 
 ```
-http://192.168.30.50:8080
+http://192.168.30.60:8080
 ```
 
 Check API health:
 
 ```bash
-curl http://192.168.30.50:8080/api/health
+curl http://192.168.30.60:8080/api/health
 ```
 
 ## Troubleshooting
@@ -204,7 +204,7 @@ kubectl rollout restart deployment/cloudarr-worker -n media-system
 
 ## LoadBalancer IP Assignment
 
-The deployment includes a LoadBalancer service on `192.168.30.50`. If this IP is unavailable or you want to change it:
+The deployment includes a LoadBalancer service on `192.168.30.60`. If this IP is unavailable or you want to change it:
 
 ```yaml
 spec:
