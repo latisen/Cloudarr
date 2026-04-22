@@ -32,6 +32,8 @@ echo ""
 # Step 3: Copy to all nodes and import
 echo "[3/5] Distributing image to k3s nodes..."
 for node in "${K3S_NODES[@]}"; do
+  echo "  Preparing host paths on ${node}..."
+  ssh -t "${node}" "sudo mkdir -p /srv/media/config/cloudarr /srv/media/mnt/debrid/imports /srv/media/data && sudo chown -R 1000:1000 /srv/media/config/cloudarr /srv/media/mnt/debrid /srv/media/data"
   echo "  Copying to ${node}..."
   scp "${IMAGE_FILE}" "${node}:/tmp/"
   echo "  Importing on ${node}..."
