@@ -149,6 +149,12 @@ async def settings_save(
     store.set("poll_interval_seconds", poll_interval_seconds.strip())
     store.set("log_level", log_level.strip().upper())
 
+    # Re-hydrate the runtime so the new settings take effect immediately
+    # without requiring a service restart.
+    runtime = request.app.state.runtime
+    runtime._hydrate_settings_from_db()
+    runtime.provider = runtime._build_provider()
+
     return RedirectResponse(url="/settings?saved=1", status_code=303)
 
 
