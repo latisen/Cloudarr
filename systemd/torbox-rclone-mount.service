@@ -1,5 +1,5 @@
 [Unit]
-Description=Cloudarr WebDAV rclone mount
+Description=Cloudarr Real-Debrid WebDAV rclone mount
 After=network-online.target
 Wants=network-online.target
 
@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=notify
 User=cloudarr
 Group=cloudarr
-ExecStart=/usr/bin/rclone mount torboxdav: /mnt/torbox --config /etc/rclone/rclone.conf --allow-other --dir-cache-time 30s --vfs-cache-mode off --poll-interval 15s --rc --rc-no-auth
+ExecStart=/usr/bin/rclone mount realdebrid: /mnt/torbox --config /etc/rclone/rclone.conf --allow-other --dir-cache-time 30s --vfs-cache-mode off --poll-interval 15s --rc --rc-no-auth
 ExecStop=/bin/fusermount -u /mnt/torbox
 Restart=always
 RestartSec=5
