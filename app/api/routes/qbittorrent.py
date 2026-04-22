@@ -106,6 +106,36 @@ async def webapi_version() -> Response:
     return PlainTextResponse("2.8.3")
 
 
+@router.get("/app/preferences")
+async def app_preferences(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    # qBittorrent compatibility shim endpoint required by Sonarr test connection.
+    auth_error = _require_auth(request, settings)
+    if auth_error:
+        return auth_error
+
+    return JSONResponse(
+        {
+            "save_path": f"{settings.symlink_staging_root}/{settings.default_category}",
+            "temp_path_enabled": False,
+            "temp_path": "",
+            "create_subfolder_enabled": False,
+            "start_paused_enabled": False,
+            "auto_tmm_enabled": False,
+            "incomplete_files_ext": False,
+            "preallocate_all": False,
+            "queueing_enabled": False,
+            "max_active_downloads": -1,
+            "max_active_torrents": -1,
+            "max_active_uploads": -1,
+            "use_https": False,
+            "web_ui_port": 8080,
+        }
+    )
+
+
 @router.post("/torrents/add")
 async def torrents_add(
     request: Request,
