@@ -21,11 +21,6 @@ build
 .coverage
 htmlcov
 tests/
-docs/
-scripts/
 systemd/
 .dockerignore
 Dockerfile
-cloudarr.k8s.yaml
-README.md
-alembic/versions/
