@@ -204,6 +204,76 @@ async def torrents_info(
     return JSONResponse([item.model_dump() for item in _to_info_items(jobs)])
 
 
+@router.get("/torrents/categories")
+async def torrents_categories(
+    request: Request,
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    # qBittorrent compatibility shim endpoint used by Sonarr category validation.
+    auth_error = _require_auth(request, settings)
+    if auth_error:
+        return auth_error
+
+    service = JobService(db)
+    categories: dict[str, dict[str, str]] = {
+        settings.default_category: {
+            "name": settings.default_category,
+            "savePath": f"{settings.symlink_staging_root}/{settings.default_category}",
+        }
+    }
+
+    for job in service.list_jobs():
+        categories[job.category] = {
+            "name": job.category,
+            "savePath": f"{settings.symlink_staging_root}/{job.category}",
+        }
+    return JSONResponse(categories)
+
+
+@router.post("/torrents/createCategory")
+async def torrents_create_category(
+    request: Request,
+    category: str = Form(default=""),
+    savePath: str = Form(default=""),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    # qBittorrent compatibility shim endpoint. Category persistence is not required
+    # because Sonarr always sends category with add requests and Cloudarr stores it per job.
+    auth_error = _require_auth(request, settings)
+    if auth_error:
+        return auth_error
+    _ = (category, savePath)
+    return PlainTextResponse("Ok.")
+
+
+@router.post("/torrents/editCategory")
+async def torrents_edit_category(
+    request: Request,
+    category: str = Form(default=""),
+    savePath: str = Form(default=""),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    auth_error = _require_auth(request, settings)
+    if auth_error:
+        return auth_error
+    _ = (category, savePath)
+    return PlainTextResponse("Ok.")
+
+
+@router.post("/torrents/removeCategories")
+async def torrents_remove_categories(
+    request: Request,
+    categories: str = Form(default=""),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    auth_error = _require_auth(request, settings)
+    if auth_error:
+        return auth_error
+    _ = categories
+    return PlainTextResponse("Ok.")
+
+
 @router.get("/torrents/properties")
 async def torrent_properties(
     request: Request,
