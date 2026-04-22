@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Recent Events</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Job</th>
+        <th>State</th>
+        <th>Message</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for event in events %}
+      <tr>
+        <td>{{ event.id }}</td>
+        <td>{{ event.job_id }}</td>
+        <td>{{ event.state }}</td>
+        <td>{{ event.message }}</td>
+        <td>{{ event.created_at }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

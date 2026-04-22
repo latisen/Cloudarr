@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Settings</h2>
+  <form method="post" action="/settings" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+
+    <label>TorBox API Key
+      <input name="torbox_api_key" type="password" placeholder="Leave blank to keep existing" />
+    </label>
+
+    <label>WebDAV URL
+      <input name="webdav_url" value="{{ settings.webdav_url }}" placeholder="https://.../dav" />
+    </label>
+
+    <label>WebDAV Username
+      <input name="webdav_username" value="{{ settings.webdav_username }}" />
+    </label>
+
+    <label>WebDAV Password
+      <input name="webdav_password" type="password" placeholder="Leave blank to keep existing" />
+    </label>
+
+    <label>WebDAV Mount Path
+      <input name="webdav_mount_path" value="{{ settings.webdav_mount_path }}" required />
+    </label>
+
+    <label>Symlink Staging Root
+      <input name="symlink_staging_root" value="{{ settings.symlink_staging_root }}" required />
+    </label>
+
+    <label>qBittorrent Shim Username
+      <input name="qbit_username" value="{{ settings.qbit_username }}" required />
+    </label>
+
+    <label>qBittorrent Shim Password
+      <input name="qbit_password" type="password" placeholder="Leave blank to keep existing" />
+    </label>
+
+    <label>Require qBittorrent Auth (true/false)
+      <input name="qbit_require_auth" value="{{ settings.qbit_require_auth }}" required />
+    </label>
+
+    <label>Refresh Command
+      <input name="webdav_refresh_command" value="{{ settings.webdav_refresh_command }}" required />
+    </label>
+
+    <label>Remount Command
+      <input name="webdav_remount_command" value="{{ settings.webdav_remount_command }}" required />
+    </label>
+
+    <label>Worker Poll Interval (seconds)
+      <input name="poll_interval_seconds" value="{{ settings.poll_interval_seconds }}" required />
+    </label>
+
+    <label>Logging Level
+      <input name="log_level" value="{{ settings.log_level }}" required />
+    </label>
+
+    <button type="submit">Save</button>
+  </form>
+</section>
+{% endblock %}

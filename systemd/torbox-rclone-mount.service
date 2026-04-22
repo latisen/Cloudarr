@@ -1,0 +1,17 @@
+[Unit]
+Description=TorBox WebDAV rclone mount for Cloudarr
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=cloudarr
+Group=cloudarr
+ExecStart=/usr/bin/rclone mount torboxdav: /mnt/torbox --config /etc/rclone/rclone.conf --allow-other --dir-cache-time 30s --vfs-cache-mode off --poll-interval 15s --rc --rc-no-auth
+ExecStop=/bin/fusermount -u /mnt/torbox
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

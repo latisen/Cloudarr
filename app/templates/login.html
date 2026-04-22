@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel narrow">
+  <h2>Admin Login</h2>
+  <form method="post" action="/login" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <label>Username
+      <input name="username" required />
+    </label>
+    <label>Password
+      <input name="password" type="password" required />
+    </label>
+    <button type="submit">Sign In</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Health</h2>
+  <ul class="health-list">
+    <li>Database: {{ "OK" if health.database.ok else "FAIL" }} ({{ health.database.message }})</li>
+    <li>Mount: {{ "OK" if health.mount.ok else "FAIL" }} ({{ health.mount.message }})</li>
+    <li>TorBox: {{ "OK" if health.torbox.ok else "FAIL" }} ({{ health.torbox.message }})</li>
+    <li>Worker Running: {{ health.worker.running }}</li>
+    <li>Active Jobs: {{ health.worker.active_jobs }}</li>
+    <li>Last Refresh: {{ health.last_successful_webdav_refresh or "n/a" }}</li>
+  </ul>
+</section>
+{% endblock %}

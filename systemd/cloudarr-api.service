@@ -1,0 +1,21 @@
+[Unit]
+Description=Cloudarr API Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cloudarr
+Group=cloudarr
+WorkingDirectory=/opt/cloudarr
+EnvironmentFile=/etc/cloudarr/cloudarr.env
+ExecStart=/opt/cloudarr/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8080 --workers 2 --timeout 120
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/torbox-arr /mnt/torbox /opt/cloudarr
+
+[Install]
+WantedBy=multi-user.target

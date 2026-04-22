@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Jobs</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Hash</th>
+        <th>Title</th>
+        <th>State</th>
+        <th>TorBox</th>
+        <th>Progress</th>
+        <th>Export Path</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr>
+        <td>{{ job.info_hash }}</td>
+        <td>{{ job.torrent_name or job.sonarr_title }}</td>
+        <td>{{ job.state }}</td>
+        <td>{{ job.torbox_job_id or "-" }}</td>
+        <td>{{ "%.0f"|format(job.progress*100) }}%</td>
+        <td>{{ job.exported_path or job.save_path }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

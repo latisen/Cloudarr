@@ -1,0 +1,21 @@
+[Unit]
+Description=Cloudarr Worker Service
+After=network-online.target cloudarr-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cloudarr
+Group=cloudarr
+WorkingDirectory=/opt/cloudarr
+EnvironmentFile=/etc/cloudarr/cloudarr.env
+ExecStart=/opt/cloudarr/.venv/bin/python -m app.worker_main
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/torbox-arr /mnt/torbox /opt/cloudarr
+
+[Install]
+WantedBy=multi-user.target
