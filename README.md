@@ -6,7 +6,7 @@ Current default provider: Real-Debrid for torrent control and polling.
 
 Core principle: media payload is never copied or downloaded locally by Cloudarr. Completed imports are exposed through symlink-only staging paths that point at mounted WebDAV content.
 
-Important Real-Debrid limitation: Real-Debrid's official API exposes torrent submission and status, but not a WebDAV filesystem. That means Real-Debrid alone cannot satisfy Cloudarr's symlink-only import architecture without a separate mountable mirror of the completed files.
+Real-Debrid integration: The system uses Real-Debrid's REST API (`https://api.real-debrid.com/rest/1.0`) for torrent management and their WebDAV filesystem (`https://dav.real-debrid.com/`) for file mounting. Use your Real-Debrid credentials for WebDAV authentication.
 
 ## Final Project Structure
 

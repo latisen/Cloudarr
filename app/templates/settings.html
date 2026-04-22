@@ -17,10 +17,10 @@
       <input name="realdebrid_api_token" type="password" placeholder="Leave blank to keep existing" />
     </label>
 
-    <p>Real-Debrid note: the official API provides torrent control and links, but not a WebDAV filesystem. Cloudarr still requires a mountable path for symlink-only imports.</p>
+    <p>Real-Debrid WebDAV: Use https://dav.real-debrid.com/ as the WebDAV URL, with your Real-Debrid username and password.</p>
 
     <label>WebDAV URL
-      <input name="webdav_url" value="{{ settings.webdav_url }}" placeholder="https://.../dav" />
+      <input name="webdav_url" value="{{ settings.webdav_url }}" placeholder="https://dav.real-debrid.com/" />
     </label>
 
     <label>WebDAV Username

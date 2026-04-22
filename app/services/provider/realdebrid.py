@@ -1,17 +1,12 @@
 """Real-Debrid provider implementation.
 
-Important limitation:
-Real-Debrid's official API exposes torrent submission, selection, status, and
-download links, but it does not expose a WebDAV filesystem. That means Cloudarr
-cannot derive a mount-backed filesystem path from Real-Debrid alone.
-
-This provider is therefore correct for torrent control/status, but will report a
-clear error when content is ready but no mountable path can be produced.
+Real-Debrid provides both torrent control via REST API and file access via WebDAV at
+https://dav.real-debrid.com/. This provider handles both, reporting WebDAV paths
+that Cloudarr can mount and use for symlink-only imports.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -111,13 +106,12 @@ class RealDebridProvider(DebridProvider):
         error: str | None = None
         remote_path: str | None = None
 
-        if ready:
-            error = (
-                "Real-Debrid torrent is ready, but the official API does not expose a WebDAV or mountable filesystem path. "
-                "Cloudarr's symlink-only import flow cannot continue without an external mountable mirror."
-            )
-            if files:
-                remote_path = str(Path(files[0].get("path") or files[0].get("filename") or "").name)
+        if ready and files:
+            # Use the path from the first file; this path is available via WebDAV
+            # e.g., "MagnetLink123/filename.mkv" or "TorrentName/subfolder/file.mkv"
+            file_path = str(files[0].get("path") or files[0].get("filename") or "")
+            if file_path:
+                remote_path = file_path
         elif status.lower() in {"error", "virus", "dead"}:
             error = item.get("message") or status
 

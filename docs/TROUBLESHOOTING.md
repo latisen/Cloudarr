@@ -20,10 +20,19 @@
 - Verify `CLOUDARR_WEBDAV_REFRESH_COMMAND` and `CLOUDARR_WEBDAV_REMOUNT_COMMAND`.
 - Confirm remote path exists in mounted tree.
 
-## Real-Debrid Jobs Fail After Provider Readiness
+## Real-Debrid WebDAV Setup
 
-- Real-Debrid's official API provides torrent management and links, but not a WebDAV filesystem.
-- If Cloudarr reports that the provider is ready but no mountable path is available, this is expected with Real-Debrid unless you have a separate mountable mirror for the completed files.
+Real-Debrid provides WebDAV access at `https://dav.real-debrid.com/` for file access.
+
+**Configuration in Settings:**
+- WebDAV URL: `https://dav.real-debrid.com/`
+- WebDAV Username: Your Real-Debrid username
+- WebDAV Password: Your Real-Debrid password
+
+After entering these credentials, jobs should process through to `WEBDAV_VISIBLE` state without errors. If jobs fail at the `REFRESHING_WEBDAV` stage, check:
+- WebDAV credentials are correct
+- Network connectivity to `https://dav.real-debrid.com/`
+- Verify `CLOUDARR_WEBDAV_REFRESH_COMMAND` and `CLOUDARR_WEBDAV_REMOUNT_COMMAND` work correctly
 
 ## Broken Symlinks
 
