@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     qbit_require_auth: bool = True
     default_category: str = "sonarr"
 
+    provider_name: str = "realdebrid"
+
+    realdebrid_api_base: str = "https://api.real-debrid.com/rest/1.0"
+    realdebrid_api_token: str = ""
+    realdebrid_add_magnet_path: str = "/torrents/addMagnet"
+    realdebrid_add_torrent_path: str = "/torrents/addTorrent"
+    realdebrid_info_path: str = "/torrents/info"
+    realdebrid_select_files_path: str = "/torrents/selectFiles"
+    realdebrid_user_path: str = "/user"
+
     torbox_api_base: str = "https://api.torbox.app"
     torbox_api_key: str = ""
     torbox_torrents_path: str = "/v1/api/torrents/createtorrent"

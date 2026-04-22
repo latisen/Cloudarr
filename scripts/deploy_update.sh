@@ -2,6 +2,9 @@
 set -euo pipefail
 
 # Deploy updated Cloudarr code to /opt/cloudarr and restart services.
+# Note: the mount service remains optional/provider-dependent. Real-Debrid's
+# official API does not expose WebDAV, so a separate mirror is required if you
+# want symlink-only imports to complete.
 # Defaults can be overridden with environment variables:
 #   SRC_DIR=/home/latis/Cloudarr APP_DIR=/opt/cloudarr sudo ./scripts/deploy_update.sh
 

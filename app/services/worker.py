@@ -102,28 +102,36 @@ class JobWorker:
             db.add(job)
             db.commit()
             db.refresh(job)
-            service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="Submitted to TorBox")
+            service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="Submitted to provider")
             return
 
         if state == JobState.SUBMITTED_TO_TORBOX:
-            service.transition(job, JobState.WAITING_FOR_TORBOX, message="Waiting for TorBox readiness")
+            service.transition(job, JobState.WAITING_FOR_TORBOX, message="Waiting for provider readiness")
             return
 
         if state == JobState.WAITING_FOR_TORBOX:
             if not job.torbox_job_id:
-                service.transition(job, JobState.FAILED, message="Missing TorBox job id", error="No provider ID")
+                service.transition(job, JobState.FAILED, message="Missing provider job id", error="No provider ID")
                 return
             status = await self._provider.get_status(job.torbox_job_id)
             job.progress = status.progress
             if status.is_failed:
-                service.transition(job, JobState.FAILED, message="TorBox failed", error=status.error or "unknown")
+                service.transition(job, JobState.FAILED, message="Provider failed", error=status.error or "unknown")
                 return
             if status.is_ready:
+                if not status.remote_path:
+                    service.transition(
+                        job,
+                        JobState.FAILED,
+                        message="Provider reported ready but no mountable path is available",
+                        error=status.error or "remote_path missing",
+                    )
+                    return
                 job.torbox_remote_path = status.remote_path
                 db.add(job)
                 db.commit()
                 db.refresh(job)
-                service.transition(job, JobState.TORBOX_READY, message="TorBox marked content ready")
+                service.transition(job, JobState.TORBOX_READY, message="Provider marked content ready")
             else:
                 db.add(job)
                 db.commit()

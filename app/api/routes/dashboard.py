@@ -79,7 +79,9 @@ async def settings_page(
     store = SettingsStore(db, settings.secret_key)
 
     context = {
-        "torbox_api_key": "(stored)" if store.get_secret("torbox_api_key") else "",
+        "provider_name": store.get("provider_name", settings.provider_name) or "",
+        "realdebrid_api_base": store.get("realdebrid_api_base", settings.realdebrid_api_base) or "",
+        "realdebrid_api_token": "(stored)" if store.get_secret("realdebrid_api_token") else "",
         "webdav_url": store.get("webdav_url", settings.webdav_url) or "",
         "webdav_username": store.get("webdav_username", settings.webdav_username) or "",
         "webdav_password": "(stored)" if store.get_secret("webdav_password") else "",
@@ -104,7 +106,9 @@ async def settings_page(
 @router.post("/settings")
 async def settings_save(
     request: Request,
-    torbox_api_key: str = Form(default=""),
+    provider_name: str = Form(...),
+    realdebrid_api_base: str = Form(...),
+    realdebrid_api_token: str = Form(default=""),
     webdav_url: str = Form(default=""),
     webdav_username: str = Form(default=""),
     webdav_password: str = Form(default=""),
@@ -125,13 +129,15 @@ async def settings_save(
     DashboardAuth.validate_csrf(request, csrf_token)
     store = SettingsStore(db, settings.secret_key)
 
-    if torbox_api_key.strip():
-        store.set_secret("torbox_api_key", torbox_api_key.strip())
+    if realdebrid_api_token.strip():
+        store.set_secret("realdebrid_api_token", realdebrid_api_token.strip())
     if webdav_password.strip():
         store.set_secret("webdav_password", webdav_password.strip())
     if qbit_password.strip():
         store.set_secret("qbit_password", qbit_password.strip())
 
+    store.set("provider_name", provider_name.strip().lower())
+    store.set("realdebrid_api_base", realdebrid_api_base.strip())
     store.set("webdav_url", webdav_url.strip())
     store.set("webdav_username", webdav_username.strip())
     store.set("webdav_mount_path", webdav_mount_path.strip())

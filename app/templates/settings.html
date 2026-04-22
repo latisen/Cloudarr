@@ -5,9 +5,19 @@
   <form method="post" action="/settings" class="form-grid">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
 
-    <label>TorBox API Key
-      <input name="torbox_api_key" type="password" placeholder="Leave blank to keep existing" />
+    <label>Provider Name
+      <input name="provider_name" value="{{ settings.provider_name }}" required />
     </label>
+
+    <label>Real-Debrid API Base
+      <input name="realdebrid_api_base" value="{{ settings.realdebrid_api_base }}" required />
+    </label>
+
+    <label>Real-Debrid API Token
+      <input name="realdebrid_api_token" type="password" placeholder="Leave blank to keep existing" />
+    </label>
+
+    <p>Real-Debrid note: the official API provides torrent control and links, but not a WebDAV filesystem. Cloudarr still requires a mountable path for symlink-only imports.</p>
 
     <label>WebDAV URL
       <input name="webdav_url" value="{{ settings.webdav_url }}" placeholder="https://.../dav" />

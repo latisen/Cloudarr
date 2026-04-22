@@ -9,8 +9,8 @@
 
 ## Jobs Stay in `WAITING_FOR_TORBOX`
 
-- Verify `CLOUDARR_TORBOX_API_KEY`.
-- Check `GET /api/health` torbox status.
+- Verify provider credentials in `/etc/cloudarr/cloudarr.env`.
+- Check `GET /api/health` provider status.
 - Inspect `Recent Events` dashboard page.
 
 ## Jobs Reach `TORBOX_READY` but Not `WEBDAV_VISIBLE`
@@ -19,6 +19,11 @@
 - Verify `torbox-rclone-mount.service` is active.
 - Verify `CLOUDARR_WEBDAV_REFRESH_COMMAND` and `CLOUDARR_WEBDAV_REMOUNT_COMMAND`.
 - Confirm remote path exists in mounted tree.
+
+## Real-Debrid Jobs Fail After Provider Readiness
+
+- Real-Debrid's official API provides torrent management and links, but not a WebDAV filesystem.
+- If Cloudarr reports that the provider is ready but no mountable path is available, this is expected with Real-Debrid unless you have a separate mountable mirror for the completed files.
 
 ## Broken Symlinks
 

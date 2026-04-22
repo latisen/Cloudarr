@@ -1,5 +1,5 @@
 [Unit]
-Description=TorBox WebDAV rclone mount for Cloudarr
+Description=Cloudarr WebDAV rclone mount
 After=network-online.target
 Wants=network-online.target
 

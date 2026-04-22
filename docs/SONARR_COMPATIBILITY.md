@@ -2,6 +2,10 @@
 
 Cloudarr emulates the qBittorrent Web API subset Sonarr commonly uses.
 
+Current default backend provider is Real-Debrid for torrent submission/status.
+
+Important limitation: Real-Debrid's official API does not expose a WebDAV filesystem, so Cloudarr cannot complete its symlink-only import flow unless you also provide a separate mountable mirror for completed files.
+
 ## Implemented qBittorrent Shim Endpoints
 
 - `POST /api/v2/auth/login`

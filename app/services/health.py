@@ -35,12 +35,12 @@ async def build_health(
         db_message = str(exc)
 
     mount_ok, mount_message = mount_manager.is_mount_available()
-    torbox_ok, torbox_message = await provider.healthcheck()
+    provider_ok, provider_message = await provider.healthcheck()
 
     return {
         "database": {"ok": db_ok, "message": db_message},
         "mount": {"ok": mount_ok, "message": mount_message},
-        "torbox": {"ok": torbox_ok, "message": torbox_message},
+        "provider": {"ok": provider_ok, "message": provider_message},
         "worker": {
             "running": worker_health.running,
             "active_jobs": worker_health.active_jobs,

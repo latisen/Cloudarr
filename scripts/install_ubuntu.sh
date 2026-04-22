@@ -54,4 +54,5 @@ systemctl daemon-reload
 systemctl enable torbox-rclone-mount.service cloudarr-api.service cloudarr-worker.service
 
 echo "Installed. Edit /etc/cloudarr/cloudarr.env and /etc/rclone/rclone.conf, then run:"
+echo "For Real-Debrid, note that the official API does not provide WebDAV; the mount service is only useful if you supply an external mountable mirror."
 echo "  systemctl restart torbox-rclone-mount.service cloudarr-api.service cloudarr-worker.service"

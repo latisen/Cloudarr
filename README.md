@@ -1,8 +1,12 @@
 # Cloudarr
 
-Cloudarr is a production-focused Ubuntu service that presents itself to Sonarr as a qBittorrent-like download client while using TorBox as the backend provider.
+Cloudarr is a production-focused Ubuntu service that presents itself to Sonarr as a qBittorrent-like download client while using a debrid backend provider.
 
-Core principle: media payload is never copied or downloaded locally by Cloudarr. Completed imports are exposed through symlink-only staging paths that point at mounted TorBox WebDAV content.
+Current default provider: Real-Debrid for torrent control and polling.
+
+Core principle: media payload is never copied or downloaded locally by Cloudarr. Completed imports are exposed through symlink-only staging paths that point at mounted WebDAV content.
+
+Important Real-Debrid limitation: Real-Debrid's official API exposes torrent submission and status, but not a WebDAV filesystem. That means Real-Debrid alone cannot satisfy Cloudarr's symlink-only import architecture without a separate mountable mirror of the completed files.
 
 ## Final Project Structure
 
@@ -33,6 +37,7 @@ Core principle: media payload is never copied or downloaded locally by Cloudarr.
 │   ├── services/
 │   │   ├── provider/
 │   │   │   ├── base.py
+│   │   │   ├── realdebrid.py
 │   │   │   └── torbox.py
 │   │   ├── health.py
 │   │   ├── job_service.py
@@ -80,8 +85,8 @@ Core principle: media payload is never copied or downloaded locally by Cloudarr.
 
 1. Sonarr talks to Cloudarr using qBittorrent Web API-compatible routes (`/api/v2/...`).
 2. Incoming magnet/torrent requests become persisted jobs in SQLAlchemy.
-3. Worker process submits jobs to TorBox and polls readiness.
-4. When TorBox reports ready, Cloudarr forces WebDAV refresh/remount logic and verifies path visibility.
+3. Worker process submits jobs to the configured provider and polls readiness.
+4. When a provider reports ready and a mountable path exists, Cloudarr forces WebDAV refresh/remount logic and verifies path visibility.
 5. Cloudarr creates symlink-only export directories under staging root (`/srv/torbox-arr/links/...`).
 6. Sonarr sees completed download paths from the shim and imports from symlink paths.
 
@@ -99,6 +104,12 @@ Implemented routes:
 - `GET /api/v2/sync/maindata`
 
 See `docs/SONARR_COMPATIBILITY.md` for Sonarr setup details.
+
+## Provider Notes
+
+- `realdebrid` is the default provider and uses the official Real-Debrid REST API.
+- Real-Debrid does not expose WebDAV in the official API documentation.
+- Because of that, Real-Debrid jobs can be submitted and monitored, but symlink-only import will stop once the torrent is ready unless you supply a separate mountable filesystem that mirrors those completed files.
 
 ## Job State Machine
 
@@ -182,7 +193,7 @@ sudo cp .env.example /etc/cloudarr/cloudarr.env
 sudoedit /etc/cloudarr/cloudarr.env
 ```
 
-5. Configure rclone remote for TorBox WebDAV in `/etc/rclone/rclone.conf`.
+5. Configure a mountable WebDAV remote in `/etc/rclone/rclone.conf` only if you have an external filesystem mirror for completed content.
 
 6. Install systemd unit files:
 
