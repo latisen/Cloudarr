@@ -1,12 +1,21 @@
 # Cloudarr
 
-Cloudarr is a production-focused Ubuntu service that presents itself to Sonarr as a qBittorrent-like download client while using a debrid backend provider.
+Cloudarr is a production-focused service that presents itself to Sonarr as a qBittorrent-like download client while using a debrid backend provider.
+
+**Deployment Options:**
+- **Systemd/Ubuntu**: Native systemd services for direct deployment
+- **Kubernetes**: Docker-based deployment for Kubernetes clusters
 
 Current default provider: Real-Debrid for torrent control and polling.
 
 Core principle: media payload is never copied or downloaded locally by Cloudarr. Completed imports are exposed through symlink-only staging paths that point at mounted WebDAV content.
 
 Real-Debrid integration: The system uses Real-Debrid's REST API (`https://api.real-debrid.com/rest/1.0`) for torrent management and their WebDAV filesystem (`https://dav.real-debrid.com/`) for file mounting. Use your Real-Debrid credentials for WebDAV authentication.
+
+## Deployment Guides
+
+- **[Ubuntu/Systemd Guide](docs/UBUNTU_INSTALLATION.md)** - Traditional systemd deployment
+- **[Kubernetes Guide](docs/KUBERNETES_DEPLOYMENT.md)** - Docker + Kubernetes deployment
 
 ## Final Project Structure
 

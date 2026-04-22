@@ -1,0 +1,287 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudarr-config
+  namespace: media-system
+data:
+  CLOUDARR_ENV: "production"
+  CLOUDARR_LOG_LEVEL: "INFO"
+  CLOUDARR_PROVIDER_NAME: "realdebrid"
+  CLOUDARR_REALDEBRID_API_BASE: "https://api.real-debrid.com/rest/1.0"
+  CLOUDARR_WEBDAV_URL: "https://dav.real-debrid.com/"
+  CLOUDARR_WEBDAV_MOUNT_PATH: "/mnt/torbox"
+  CLOUDARR_SYMLINK_STAGING_ROOT: "/mnt/debrid/imports"
+  CLOUDARR_QBIT_USERNAME: "sonarr"
+  CLOUDARR_QBIT_REQUIRE_AUTH: "true"
+  CLOUDARR_DEFAULT_CATEGORY: "sonarr"
+  CLOUDARR_WEBDAV_REFRESH_COMMAND: "rclone rc vfs/refresh recursive=true"
+  CLOUDARR_WEBDAV_REMOUNT_COMMAND: "/bin/true"
+  CLOUDARR_POLL_INTERVAL_SECONDS: "15"
+  CLOUDARR_MAX_SUBMIT_RETRIES: "3"
+  CLOUDARR_ADMIN_USER: "admin"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudarr-secrets
+  namespace: media-system
+type: Opaque
+stringData:
+  CLOUDARR_SECRET_KEY: "change-this-random-secret-key"
+  CLOUDARR_ADMIN_PASSWORD: "change-me"
+  CLOUDARR_QBIT_PASSWORD: "sonarr-pass"
+  CLOUDARR_REALDEBRID_API_TOKEN: ""
+  CLOUDARR_WEBDAV_USERNAME: ""
+  CLOUDARR_WEBDAV_PASSWORD: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudarr-api
+  namespace: media-system
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: cloudarr
+      component: api
+  template:
+    metadata:
+      labels:
+        app: cloudarr
+        component: api
+    spec:
+      serviceAccountName: default
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 30
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 30
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: media-role
+                    operator: In
+                    values:
+                      - primary
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: media-role
+                    operator: In
+                    values:
+                      - secondary
+      containers:
+        - name: api
+          image: cloudarr:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: web
+          env:
+            - name: CLOUDARR_DB_URL
+              value: "sqlite:////config/cloudarr.db"
+            - name: TZ
+              value: "Europe/Stockholm"
+          envFrom:
+            - configMapRef:
+                name: cloudarr-config
+            - secretRef:
+                name: cloudarr-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media-data
+              mountPath: /data
+              mountPropagation: HostToContainer
+            - name: media-debrid
+              mountPath: /mnt/debrid
+              mountPropagation: HostToContainer
+            - name: torbox-mount
+              mountPath: /mnt/torbox
+              mountPropagation: HostToContainer
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 2
+      volumes:
+        - name: config
+          hostPath:
+            path: /srv/media/config/cloudarr
+            type: DirectoryOrCreate
+        - name: media-data
+          hostPath:
+            path: /srv/media/data
+            type: DirectoryOrCreate
+        - name: media-debrid
+          hostPath:
+            path: /srv/media/mnt/debrid
+            type: DirectoryOrCreate
+        - name: torbox-mount
+          hostPath:
+            path: /mnt/torbox
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudarr-worker
+  namespace: media-system
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: cloudarr
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: cloudarr
+        component: worker
+    spec:
+      serviceAccountName: default
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 30
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 30
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: media-role
+                    operator: In
+                    values:
+                      - primary
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: media-role
+                    operator: In
+                    values:
+                      - secondary
+      containers:
+        - name: worker
+          image: cloudarr:latest
+          imagePullPolicy: Never
+          command: ["python", "-m", "app.worker_main"]
+          env:
+            - name: CLOUDARR_DB_URL
+              value: "sqlite:////config/cloudarr.db"
+            - name: TZ
+              value: "Europe/Stockholm"
+          envFrom:
+            - configMapRef:
+                name: cloudarr-config
+            - secretRef:
+                name: cloudarr-secrets
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media-data
+              mountPath: /data
+              mountPropagation: HostToContainer
+            - name: media-debrid
+              mountPath: /mnt/debrid
+              mountPropagation: HostToContainer
+            - name: torbox-mount
+              mountPath: /mnt/torbox
+              mountPropagation: HostToContainer
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          hostPath:
+            path: /srv/media/config/cloudarr
+            type: DirectoryOrCreate
+        - name: media-data
+          hostPath:
+            path: /srv/media/data
+            type: DirectoryOrCreate
+        - name: media-debrid
+          hostPath:
+            path: /srv/media/mnt/debrid
+            type: DirectoryOrCreate
+        - name: torbox-mount
+          hostPath:
+            path: /mnt/torbox
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudarr
+  namespace: media-system
+spec:
+  type: ClusterIP
+  selector:
+    app: cloudarr
+    component: api
+  ports:
+    - name: web
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudarr-expose
+  namespace: media-system
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.30.50
+  selector:
+    app: cloudarr
+    component: api
+  ports:
+    - name: web
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
