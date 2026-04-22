@@ -45,6 +45,7 @@ class JobWorker:
 
     async def run_forever(self) -> None:
         self._running = True
+        logger.info("worker_started")
         while self._running:
             db: Session = self._db_factory()
             try:
@@ -61,11 +62,13 @@ class JobWorker:
                 await self._process_job(db, service, job)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("job_process_failed", extra={"job_id": job.id, "state": job.state})
+                detailed_error = f"{type(exc).__name__}: {exc}"
                 service.transition(
                     job,
                     JobState.FAILED,
-                    message="Unhandled worker exception",
-                    error=str(exc),
+                    message=f"Unhandled worker exception: {detailed_error}",
+                    error=detailed_error,
+                    payload={"exception_type": type(exc).__name__, "exception": str(exc)},
                 )
 
     async def _process_job(self, db: Session, service: JobService, job: Job) -> None:
