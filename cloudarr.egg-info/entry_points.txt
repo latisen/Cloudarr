@@ -1,0 +1,3 @@
+[console_scripts]
+cloudarr-api = app.main:run
+cloudarr-worker = app.worker_main:run

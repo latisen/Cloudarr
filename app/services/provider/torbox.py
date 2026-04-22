@@ -10,7 +10,6 @@ without impacting qBittorrent compatibility logic.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import Any
 
 import httpx
@@ -26,6 +25,7 @@ class TorBoxProvider(DebridProvider):
         self._base = settings.torbox_api_base.rstrip("/")
         self._api_key = settings.torbox_api_key
         self._torrents_path = settings.torbox_torrents_path
+        self._mylist_path = settings.torbox_mylist_path
         self._health_path = settings.torbox_health_path
         self._timeout = httpx.Timeout(20.0)
 
@@ -35,95 +35,103 @@ class TorBoxProvider(DebridProvider):
             "Accept": "application/json",
         }
 
-    def _candidate_torrent_paths(self) -> list[str]:
-        configured = self._torrents_path if self._torrents_path.startswith("/") else f"/{self._torrents_path}"
-        candidates = [
-            configured,
-            "/api/v1/torrents",
-            "/v1/api/torrents",
-            "/v1/torrents",
-            "/api/torrents",
-            "/torrents",
-        ]
-        ordered: list[str] = []
-        for value in candidates:
-            if value not in ordered:
-                ordered.append(value)
-        return ordered
+    def _normalized_path(self, path: str) -> str:
+        return path if path.startswith("/") else f"/{path}"
 
-    async def _post_first_json(
-        self,
-        *,
-        paths: Iterable[str],
-        json_payload: dict[str, Any] | None = None,
-        files: dict[str, tuple[str, bytes, str]] | None = None,
-    ) -> dict[str, Any]:
-        errors: list[str] = []
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            for path in paths:
-                url = f"{self._base}{path}"
-                response = await client.post(url, json=json_payload, files=files, headers=self._headers())
-                if response.status_code == 404:
-                    errors.append(f"404 on {url}")
-                    continue
-                try:
-                    response.raise_for_status()
-                except httpx.HTTPStatusError as exc:
-                    body = exc.response.text[:400] if exc.response is not None else ""
-                    raise RuntimeError(f"TorBox POST failed at {url}: {exc}; body={body}") from exc
-                return response.json()
-        raise RuntimeError(f"TorBox torrents endpoint not found. Tried: {', '.join(errors)}")
+    def _unwrap_standard_response(self, payload: dict[str, Any], *, url: str) -> Any:
+        if "success" not in payload:
+            return payload
+        if not payload.get("success", False):
+            raise RuntimeError(
+                f"TorBox API error at {url}: {payload.get('error') or 'UNKNOWN'} - {payload.get('detail') or 'no detail'}"
+            )
+        return payload.get("data")
 
-    async def _get_first_json(self, *, paths: Iterable[str]) -> dict[str, Any]:
-        errors: list[str] = []
+    async def _post_form(self, *, path: str, form_data: dict[str, Any], files: dict[str, tuple[str, bytes, str]] | None = None) -> Any:
+        url = f"{self._base}{self._normalized_path(path)}"
         async with httpx.AsyncClient(timeout=self._timeout) as client:
-            for path in paths:
-                url = f"{self._base}{path}"
-                response = await client.get(url, headers=self._headers())
-                if response.status_code == 404:
-                    errors.append(f"404 on {url}")
-                    continue
-                try:
-                    response.raise_for_status()
-                except httpx.HTTPStatusError as exc:
-                    body = exc.response.text[:400] if exc.response is not None else ""
-                    raise RuntimeError(f"TorBox GET failed at {url}: {exc}; body={body}") from exc
-                return response.json()
-        raise RuntimeError(f"TorBox endpoint not found. Tried: {', '.join(errors)}")
+            response = await client.post(url, data=form_data, files=files, headers=self._headers())
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                body = exc.response.text[:800] if exc.response is not None else ""
+                raise RuntimeError(f"TorBox POST failed at {url}: {exc}; body={body}") from exc
+            return self._unwrap_standard_response(response.json(), url=url)
+
+    async def _get_json(self, *, path: str, params: dict[str, Any] | None = None) -> Any:
+        url = f"{self._base}{self._normalized_path(path)}"
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.get(url, params=params, headers=self._headers())
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                body = exc.response.text[:800] if exc.response is not None else ""
+                raise RuntimeError(f"TorBox GET failed at {url}: {exc}; body={body}") from exc
+            return self._unwrap_standard_response(response.json(), url=url)
 
     async def submit_magnet(self, magnet_uri: str) -> ProviderSubmission:
-        payload = {"magnet": magnet_uri}
-        data = await self._post_first_json(paths=self._candidate_torrent_paths(), json_payload=payload)
+        data = await self._post_form(
+            path=self._torrents_path,
+            form_data={
+                "magnet": magnet_uri,
+                "seed": "1",
+                "allow_zip": "true",
+            },
+        )
 
         return ProviderSubmission(
-            provider_job_id=str(data.get("id") or data.get("torrent_id") or data.get("job_id")),
-            display_name=str(data.get("name") or "torbox-job"),
+            provider_job_id=str(data.get("torrent_id") or data.get("id") or data.get("auth_id") or ""),
+            display_name=str(data.get("hash") or "torbox-job"),
         )
 
     async def submit_torrent_bytes(self, filename: str, data: bytes) -> ProviderSubmission:
         files = {"file": (filename, data, "application/x-bittorrent")}
-        payload = await self._post_first_json(paths=self._candidate_torrent_paths(), files=files)
+        payload = await self._post_form(
+            path=self._torrents_path,
+            form_data={
+                "seed": "1",
+                "allow_zip": "true",
+                "name": filename,
+            },
+            files=files,
+        )
 
         return ProviderSubmission(
-            provider_job_id=str(payload.get("id") or payload.get("torrent_id") or payload.get("job_id")),
-            display_name=str(payload.get("name") or filename),
+            provider_job_id=str(payload.get("torrent_id") or payload.get("id") or payload.get("auth_id") or ""),
+            display_name=str(payload.get("hash") or filename),
         )
 
     async def get_status(self, provider_job_id: str) -> ProviderStatus:
-        data = await self._get_first_json(
-            paths=[f"{path.rstrip('/')}/{provider_job_id}" for path in self._candidate_torrent_paths()]
+        data = await self._get_json(
+            path=self._mylist_path,
+            params={
+                "id": provider_job_id,
+                "bypass_cache": "true",
+            },
         )
 
-        progress = float(data.get("progress", 0.0))
+        item = data[0] if isinstance(data, list) else data
+
+        progress = float(item.get("progress", 0.0))
         if progress > 1.0:
             progress /= 100.0
 
+        remote_path = item.get("download_path")
+        if not remote_path:
+            files = item.get("files") or []
+            if files:
+                remote_path = files[0].get("absolute_path")
+
+        download_state = str(item.get("download_state", "unknown"))
+        is_finished = bool(item.get("download_finished", False))
+        normalized_status = "completed" if is_finished else download_state
+
         return ProviderStatus(
             provider_job_id=provider_job_id,
-            status=str(data.get("status", "unknown")),
+            status=normalized_status,
             progress=max(0.0, min(progress, 1.0)),
-            remote_path=data.get("webdav_path") or data.get("path"),
-            error=data.get("error"),
+            remote_path=remote_path,
+            error=item.get("error") or item.get("tracker_message"),
         )
 
     async def healthcheck(self) -> tuple[bool, str]:
@@ -131,19 +139,7 @@ class TorBoxProvider(DebridProvider):
             return False, "TorBox API key is not configured"
 
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                health_paths = [
-                    self._health_path if self._health_path.startswith("/") else f"/{self._health_path}",
-                    "/api/v1/health",
-                    "/v1/health",
-                    "/health",
-                ]
-                for path in health_paths:
-                    response = await client.get(f"{self._base}{path}", headers=self._headers())
-                    if response.status_code == 404:
-                        continue
-                    response.raise_for_status()
-                    return True, "ok"
-                return False, "torbox_health_endpoint_not_found"
+            await self._get_json(path=self._health_path, params={"limit": "1"})
+            return True, "ok"
         except Exception as exc:  # noqa: BLE001
             return False, f"torbox_unreachable: {exc}"

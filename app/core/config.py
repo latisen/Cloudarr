@@ -26,8 +26,9 @@ class Settings(BaseSettings):
 
     torbox_api_base: str = "https://api.torbox.app"
     torbox_api_key: str = ""
-    torbox_torrents_path: str = "/api/v1/torrents"
-    torbox_health_path: str = "/api/v1/health"
+    torbox_torrents_path: str = "/v1/api/torrents/createtorrent"
+    torbox_mylist_path: str = "/v1/api/torrents/mylist"
+    torbox_health_path: str = "/v1/api/torrents/mylist"
 
     webdav_url: str = ""
     webdav_username: str = ""
