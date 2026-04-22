@@ -65,7 +65,15 @@ spec:
       initContainers:
         - name: init-permissions
           image: busybox:1.36
-          command: ["sh", "-c", "mkdir -p /config /mnt/debrid/imports && chown -R 1000:1000 /config /mnt/debrid"]
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            [
+              "sh",
+              "-c",
+              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config /mnt/debrid && chmod 0775 /config && chmod 0664 /config/cloudarr.db",
+            ]
           volumeMounts:
             - name: config
               mountPath: /config
@@ -194,7 +202,15 @@ spec:
       initContainers:
         - name: init-permissions
           image: busybox:1.36
-          command: ["sh", "-c", "mkdir -p /config /mnt/debrid/imports && chown -R 1000:1000 /config /mnt/debrid"]
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            [
+              "sh",
+              "-c",
+              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config /mnt/debrid && chmod 0775 /config && chmod 0664 /config/cloudarr.db",
+            ]
           volumeMounts:
             - name: config
               mountPath: /config
