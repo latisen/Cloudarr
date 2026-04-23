@@ -51,6 +51,7 @@ echo ""
 
 # Step 5: Deploy to Kubernetes
 echo "[5/5] Deploying to Kubernetes..."
+kubectl delete deployment/cloudarr-worker -n "${NAMESPACE}" --ignore-not-found --wait=true
 kubectl apply -f "${YAML_FILE}"
 echo "✓ Deployment applied"
 echo ""
