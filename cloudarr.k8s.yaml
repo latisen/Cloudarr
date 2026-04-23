@@ -9,7 +9,7 @@ metadata:
   name: cloudarr-config
   namespace: media-system
 data:
-  CLOUDARR_ENV: "production"
+  CLOUDARR_ENV: "development"
   CLOUDARR_LOG_LEVEL: "INFO"
   CLOUDARR_PROVIDER_NAME: "realdebrid"
   CLOUDARR_REALDEBRID_API_BASE: "https://api.real-debrid.com/rest/1.0"
