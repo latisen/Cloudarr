@@ -253,7 +253,7 @@ spec:
             - "-c"
             - |
               set -eu
-              mkdir -p /root/.config/rclone /mnt/torbox
+              mkdir -p /root/.config/rclone /mnt/torbox /tmp/rclone-cache
               fusermount3 -u /mnt/torbox >/dev/null 2>&1 || true
               umount -l /mnt/torbox >/dev/null 2>&1 || true
               PASSWORD_OBSCURED="$(rclone obscure "$CLOUDARR_WEBDAV_PASSWORD")"
@@ -272,8 +272,8 @@ spec:
               trap cleanup EXIT INT TERM
               rclone mount realdebrid: /mnt/torbox \
                 --dir-cache-time 30s \
-                --vfs-cache-mode off \
-                --poll-interval 15s \
+                --cache-dir /tmp/rclone-cache \
+                --vfs-cache-mode writes \
                 --rc \
                 --rc-no-auth \
                 --config /root/.config/rclone/rclone.conf \
