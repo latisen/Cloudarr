@@ -59,14 +59,15 @@ class WebDavMountManager:
         """Force refresh and validate visibility of remote path in mounted filesystem."""
 
         rel = remote_path.lstrip("/")
-        if self._remote_root:
-            expected = self.mount_path / self._remote_root / rel
-        else:
-            expected = self.mount_path / rel
+        candidates = [self.mount_path / rel]
+        if self._remote_root and not rel.startswith(f"{self._remote_root}/"):
+            candidates.insert(0, self.mount_path / self._remote_root / rel)
 
         for attempt in range(1, self.settings.refresh_max_attempts + 1):
-            if expected.exists():
-                return True, f"visible_after_attempt_{attempt}"
+            for candidate in candidates:
+                if candidate.exists():
+                    return True, f"visible_after_attempt_{attempt}"
             await self.refresh_mount_view()
             await asyncio.sleep(self.settings.refresh_retry_seconds)
-        return False, f"remote path not visible after retries: {expected}"
+        checked = ", ".join(str(candidate) for candidate in candidates)
+        return False, f"remote path not visible after retries: {checked}"
