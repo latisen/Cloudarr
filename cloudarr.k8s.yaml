@@ -133,9 +133,6 @@ spec:
             - name: media-debrid
               mountPath: /mnt/debrid
               mountPropagation: HostToContainer
-            - name: torbox-mount
-              mountPath: /mnt/torbox
-              mountPropagation: HostToContainer
           resources:
             requests:
               cpu: 100m
@@ -171,10 +168,6 @@ spec:
         - name: media-debrid
           hostPath:
             path: /srv/media/mnt/debrid
-            type: DirectoryOrCreate
-        - name: torbox-mount
-          hostPath:
-            path: /mnt/torbox
             type: DirectoryOrCreate
 ---
 apiVersion: apps/v1
@@ -245,6 +238,61 @@ spec:
                     values:
                       - secondary
       containers:
+        - name: rclone-mount
+          image: cloudarr:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            capabilities:
+              add:
+                - SYS_ADMIN
+          env:
+            - name: TZ
+              value: "Europe/Stockholm"
+          envFrom:
+            - secretRef:
+                name: cloudarr-secrets
+          command:
+            - "sh"
+            - "-c"
+            - |
+              # Create rclone config from environment
+              mkdir -p /root/.config/rclone
+              cat > /root/.config/rclone/rclone.conf << 'RCLONE_CONFIG'
+              [realdebrid]
+              type = webdav
+              url = https://dav.real-debrid.com/
+              vendor = other
+              user = ${CLOUDARR_WEBDAV_USERNAME}
+              pass = ${CLOUDARR_WEBDAV_PASSWORD}
+              RCLONE_CONFIG
+              
+              # Mount and keep process alive
+              echo "Starting rclone mount for Real-Debrid..."
+              exec rclone mount realdebrid: /mnt/torbox \
+                --allow-other \
+                --dir-cache-time 30s \
+                --vfs-cache-mode off \
+                --poll-interval 15s \
+                --rc \
+                --rc-no-auth \
+                --log-level INFO
+          volumeMounts:
+            - name: torbox-mount
+              mountPath: /mnt/torbox
+              mountPropagation: Bidirectional
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          lifecycle:
+            preStop:
+              exec:
+                command: ["fusermount", "-u", "/mnt/torbox"]
         - name: worker
           image: cloudarr:latest
           imagePullPolicy: IfNotPresent
@@ -292,9 +340,9 @@ spec:
             path: /srv/media/mnt/debrid
             type: DirectoryOrCreate
         - name: torbox-mount
-          hostPath:
-            path: /mnt/torbox
-            type: DirectoryOrCreate
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
 ---
 apiVersion: v1
 kind: Service
