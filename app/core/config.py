@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     webdav_mount_path: str = "/mnt/torbox"
     symlink_staging_root: str = "/srv/torbox-arr/links"
     torbox_remote_root: str = "/"
+    webdav_remote_root: str = "links"
     torrent_cache_dir: str = "/var/lib/cloudarr/torrents"
 
     refresh_max_attempts: int = Field(default=10, ge=1, le=100)

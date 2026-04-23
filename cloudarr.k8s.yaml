@@ -15,6 +15,7 @@ data:
   CLOUDARR_REALDEBRID_API_BASE: "https://api.real-debrid.com/rest/1.0"
   CLOUDARR_WEBDAV_URL: "https://dav.real-debrid.com/"
   CLOUDARR_WEBDAV_MOUNT_PATH: "/mnt/torbox"
+  CLOUDARR_WEBDAV_REMOTE_ROOT: "links"
   CLOUDARR_SYMLINK_STAGING_ROOT: "/mnt/debrid/imports"
   CLOUDARR_QBIT_USERNAME: "sonarr"
   CLOUDARR_QBIT_REQUIRE_AUTH: "true"

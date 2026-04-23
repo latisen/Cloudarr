@@ -19,6 +19,7 @@ class WebDavMountManager:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.mount_path = Path(settings.webdav_mount_path)
+        self._remote_root = settings.webdav_remote_root.strip("/")
         self.last_successful_refresh: str | None = None
 
     def _run_shell(self, cmd: str) -> tuple[bool, str]:
@@ -47,7 +48,7 @@ class WebDavMountManager:
             self.last_successful_refresh = output or "refreshed"
             return True, output or "refreshed"
 
-        logger.warning("webdav_refresh_failed", extra={"state": "REFRESHING_WEBDAV", "msg": output})
+        logger.warning("webdav_refresh_failed", extra={"state": "REFRESHING_WEBDAV", "refresh_output": output})
         remount_ok, remount_output = self._run_shell(self.settings.webdav_remount_command)
         if remount_ok:
             self.last_successful_refresh = remount_output or "remounted"
@@ -58,7 +59,10 @@ class WebDavMountManager:
         """Force refresh and validate visibility of remote path in mounted filesystem."""
 
         rel = remote_path.lstrip("/")
-        expected = self.mount_path / rel
+        if self._remote_root:
+            expected = self.mount_path / self._remote_root / rel
+        else:
+            expected = self.mount_path / rel
 
         for attempt in range(1, self.settings.refresh_max_attempts + 1):
             if expected.exists():
