@@ -72,7 +72,7 @@ spec:
             [
               "sh",
               "-c",
-              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config /mnt/debrid && chmod 0775 /config && chmod 0664 /config/cloudarr.db",
+              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config && chmod 0775 /config && chmod 0664 /config/cloudarr.db && (chown -R 1000:1000 /mnt/debrid || true)",
             ]
           volumeMounts:
             - name: config
@@ -209,7 +209,7 @@ spec:
             [
               "sh",
               "-c",
-              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config /mnt/debrid && chmod 0775 /config && chmod 0664 /config/cloudarr.db",
+              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config && chmod 0775 /config && chmod 0664 /config/cloudarr.db && (chown -R 1000:1000 /mnt/debrid || true)",
             ]
           volumeMounts:
             - name: config
