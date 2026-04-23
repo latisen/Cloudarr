@@ -254,14 +254,20 @@ spec:
             - |
               set -eu
               mkdir -p /root/.config/rclone /mnt/torbox
+              fusermount3 -u /mnt/torbox >/dev/null 2>&1 || true
+              umount -l /mnt/torbox >/dev/null 2>&1 || true
               PASSWORD_OBSCURED="$(rclone obscure "$CLOUDARR_WEBDAV_PASSWORD")"
-              rclone config create realdebrid webdav \
-                url "$CLOUDARR_WEBDAV_URL" \
-                vendor other \
-                user "$CLOUDARR_WEBDAV_USERNAME" \
-                pass "$PASSWORD_OBSCURED" >/dev/null
+              cat > /root/.config/rclone/rclone.conf <<EOF
+              [realdebrid]
+              type = webdav
+              url = ${CLOUDARR_WEBDAV_URL}
+              vendor = other
+              user = ${CLOUDARR_WEBDAV_USERNAME}
+              pass = ${PASSWORD_OBSCURED}
+              EOF
               cleanup() {
                 fusermount3 -u /mnt/torbox >/dev/null 2>&1 || true
+                umount -l /mnt/torbox >/dev/null 2>&1 || true
               }
               trap cleanup EXIT INT TERM
               rclone mount realdebrid: /mnt/torbox \
@@ -270,6 +276,8 @@ spec:
                 --poll-interval 15s \
                 --rc \
                 --rc-no-auth \
+                --config /root/.config/rclone/rclone.conf \
+                --allow-non-empty \
                 --log-level INFO &
               RCLONE_PID=$!
               sleep 3
