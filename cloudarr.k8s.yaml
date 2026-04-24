@@ -73,7 +73,7 @@ spec:
             [
               "sh",
               "-c",
-              "mkdir -p /config /data/downloads/sonarr && touch /config/cloudarr.db && chown -R 1000:1000 /config /data/downloads && chmod 0775 /config /data/downloads && chmod 0664 /config/cloudarr.db",
+              "mkdir -p /config /data /data/downloads /data/downloads/sonarr; touch /config/cloudarr.db || true; chown -R 1000:1000 /config /data/downloads || true; chmod 0775 /config /data/downloads /data/downloads/sonarr || true; chmod 0664 /config/cloudarr.db || true",
             ]
           volumeMounts:
             - name: config
@@ -196,7 +196,7 @@ spec:
             [
               "sh",
               "-c",
-              "mkdir -p /config /data/downloads/sonarr && touch /config/cloudarr.db && chown -R 1000:1000 /config /data/downloads && chmod 0775 /config /data/downloads && chmod 0664 /config/cloudarr.db",
+              "mkdir -p /config /data /data/downloads /data/downloads/sonarr; touch /config/cloudarr.db || true; chown -R 1000:1000 /config /data/downloads || true; chmod 0775 /config /data/downloads /data/downloads/sonarr || true; chmod 0664 /config/cloudarr.db || true",
             ]
           volumeMounts:
             - name: config
