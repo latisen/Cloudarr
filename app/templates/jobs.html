@@ -8,6 +8,7 @@
         <th>Hash</th>
         <th>Title</th>
         <th>State</th>
+        <th>Error</th>
         <th>TorBox</th>
         <th>Progress</th>
         <th>Export Path</th>
@@ -19,6 +20,7 @@
         <td>{{ job.info_hash }}</td>
         <td>{{ job.torrent_name or job.sonarr_title }}</td>
         <td>{{ job.state }}</td>
+        <td>{{ job.error_message or "-" }}</td>
         <td>{{ job.torbox_job_id or "-" }}</td>
         <td>{{ "%.0f"|format(job.progress*100) }}%</td>
         <td>{{ job.exported_path or job.save_path }}</td>
