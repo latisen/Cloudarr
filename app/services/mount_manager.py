@@ -63,10 +63,41 @@ class WebDavMountManager:
         if self._remote_root and not rel.startswith(f"{self._remote_root}/"):
             candidates.insert(0, self.mount_path / self._remote_root / rel)
 
+        def resolve_fallback() -> Path | None:
+            """Fallback to filename-based search when provider path shape differs from mount layout."""
+
+            name = Path(rel).name
+            if not name:
+                return None
+
+            roots: list[Path] = []
+            if self._remote_root:
+                roots.append(self.mount_path / self._remote_root)
+            roots.append(self.mount_path)
+
+            seen: set[Path] = set()
+            for root in roots:
+                if root in seen or not root.exists() or not root.is_dir():
+                    continue
+                seen.add(root)
+                try:
+                    for match in root.rglob(name):
+                        if match.exists():
+                            return match
+                except OSError:
+                    continue
+            return None
+
         for attempt in range(1, self.settings.refresh_max_attempts + 1):
             for candidate in candidates:
                 if candidate.exists():
                     return True, f"visible_after_attempt_{attempt}"
+
+            resolved = resolve_fallback()
+            if resolved is not None:
+                rel_resolved = resolved.relative_to(self.mount_path).as_posix()
+                return True, f"resolved_relative_path=/{rel_resolved}"
+
             await self.refresh_mount_view()
             await asyncio.sleep(self.settings.refresh_retry_seconds)
         checked = ", ".join(str(candidate) for candidate in candidates)

@@ -37,3 +37,24 @@ async def test_refresh_visibility_retries(monkeypatch: pytest.MonkeyPatch, tmp_p
     ok, _ = await manager.ensure_remote_path_visible("ready")
     assert ok
     assert calls["count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_refresh_visibility_resolves_by_filename(tmp_path: Path) -> None:
+    settings = Settings(
+        webdav_mount_path=str(tmp_path),
+        webdav_remote_root="links",
+        refresh_max_attempts=1,
+        refresh_retry_seconds=0,
+        webdav_refresh_command="true",
+        webdav_remount_command="false",
+    )
+    manager = WebDavMountManager(settings)
+
+    target = tmp_path / "links" / "series" / "Andor S02E12.mkv"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.touch()
+
+    ok, msg = await manager.ensure_remote_path_visible("/Andor S02E12.mkv")
+    assert ok
+    assert msg == "resolved_relative_path=/links/series/Andor S02E12.mkv"

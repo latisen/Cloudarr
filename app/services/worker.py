@@ -149,6 +149,13 @@ class JobWorker:
             if not visible:
                 service.transition(job, JobState.NEEDS_ATTENTION, message="WebDAV path not visible", error=msg)
                 return
+            if msg.startswith("resolved_relative_path="):
+                # Keep downstream symlink creation aligned with the concrete path visible in the mount.
+                job.torbox_remote_path = msg.split("=", 1)[1]
+                db.add(job)
+                db.commit()
+                db.refresh(job)
+                msg = "resolved_remote_path"
             service.transition(job, JobState.WEBDAV_VISIBLE, message=msg)
             return
 
