@@ -56,6 +56,7 @@ class Settings(BaseSettings):
 
     poll_interval_seconds: int = Field(default=15, ge=3, le=600)
     max_submit_retries: int = Field(default=3, ge=1, le=10)
+    enable_embedded_worker: bool = True
 
 
 @lru_cache(maxsize=1)

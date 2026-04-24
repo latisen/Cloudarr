@@ -31,15 +31,18 @@ async def lifespan(app: FastAPI):
     runtime = Runtime(settings)
     app.state.runtime = runtime
 
-    worker_task = asyncio.create_task(runtime.worker.run_forever())
+    worker_task: asyncio.Task[None] | None = None
+    if settings.enable_embedded_worker:
+        worker_task = asyncio.create_task(runtime.worker.run_forever())
     app.state.worker_task = worker_task
     try:
         yield
     finally:
-        runtime.worker.stop()
-        worker_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await worker_task
+        if worker_task is not None:
+            runtime.worker.stop()
+            worker_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await worker_task
 
 
 app = FastAPI(title="Cloudarr", lifespan=lifespan)
