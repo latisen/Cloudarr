@@ -73,13 +73,11 @@ spec:
             [
               "sh",
               "-c",
-              "mkdir -p /config /mnt/debrid/imports /data/downloads/sonarr && touch /config/cloudarr.db && chown -R 1000:1000 /config /data/downloads && chmod 0775 /config /data/downloads && chmod 0664 /config/cloudarr.db && (chown -R 1000:1000 /mnt/debrid || true)",
+              "mkdir -p /config /data/downloads/sonarr && touch /config/cloudarr.db && chown -R 1000:1000 /config /data/downloads && chmod 0775 /config /data/downloads && chmod 0664 /config/cloudarr.db",
             ]
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: media-debrid
-              mountPath: /mnt/debrid
             - name: media-data
               mountPath: /data
       serviceAccountName: default
@@ -131,9 +129,6 @@ spec:
               mountPath: /config
             - name: media-data
               mountPath: /data
-              mountPropagation: HostToContainer
-            - name: media-debrid
-              mountPath: /mnt/debrid
               mountPropagation: HostToContainer
           resources:
             requests:
