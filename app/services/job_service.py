@@ -5,13 +5,19 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import logging
+import time
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.models.enums import JobState, TERMINAL_STATES
 from app.models.job import Job, JobEvent
 from app.services.state_machine import can_transition
+
+
+logger = logging.getLogger(__name__)
 
 
 def derive_info_hash(magnet: str | None, fallback: str) -> str:
@@ -26,6 +32,22 @@ class JobService:
 
     def __init__(self, db: Session) -> None:
         self.db = db
+
+    def _commit_with_retry(self, *, context: str, attempts: int = 3) -> None:
+        for attempt in range(1, attempts + 1):
+            try:
+                self.db.commit()
+                return
+            except OperationalError as exc:
+                self.db.rollback()
+                text = str(exc).lower()
+                is_transient_lock = "database is locked" in text or "database is busy" in text
+                if is_transient_lock and attempt < attempts:
+                    time.sleep(0.1 * attempt)
+                    continue
+                raise
+
+        raise RuntimeError(f"commit failed in {context}")
 
     def create_received_job(
         self,
@@ -53,7 +75,7 @@ class JobService:
             progress=0.0,
         )
         self.db.add(job)
-        self.db.commit()
+        self._commit_with_retry(context="create_received_job")
         self.db.refresh(job)
         self.add_event(job.id, JobState.RECEIVED_FROM_SONARR, "received from sonarr")
         return job
@@ -74,7 +96,7 @@ class JobService:
     def add_event(self, job_id: str, state: JobState, message: str, payload: dict[str, str] | None = None) -> None:
         event = JobEvent(job_id=job_id, state=state.value, message=message, payload_json=json.dumps(payload or {}))
         self.db.add(event)
-        self.db.commit()
+        self._commit_with_retry(context="add_event")
 
     def transition(
         self,
@@ -98,7 +120,10 @@ class JobService:
                 job.progress = 1.0
 
         self.db.add(job)
-        self.db.commit()
+        self._commit_with_retry(context="transition")
         self.db.refresh(job)
-        self.add_event(job.id, new_state, message, payload=payload)
+        try:
+            self.add_event(job.id, new_state, message, payload=payload)
+        except Exception:  # noqa: BLE001
+            logger.exception("job_event_write_failed", extra={"job_id": job.id, "state": new_state.value})
         return job
