@@ -51,6 +51,8 @@ class JobWorker:
             db: Session = self._db_factory()
             try:
                 await self._tick(db)
+            except Exception:  # noqa: BLE001
+                logger.exception("worker_tick_failed")
             finally:
                 db.close()
             await asyncio.sleep(self._settings.poll_interval_seconds)
@@ -64,15 +66,19 @@ class JobWorker:
             except Exception as exc:  # noqa: BLE001
                 logger.exception("job_process_failed", extra={"job_id": job.id, "state": job.state})
                 detailed_error = f"{type(exc).__name__}: {exc}"
-                self._transition_or_log(
-                    db,
-                    service,
-                    job,
-                    JobState.FAILED,
-                    message=f"Unhandled worker exception: {detailed_error}",
-                    error=detailed_error,
-                    payload={"exception_type": type(exc).__name__, "exception": str(exc)},
-                )
+                try:
+                    db.rollback()
+                    self._transition_or_log(
+                        db,
+                        service,
+                        job,
+                        JobState.FAILED,
+                        message=f"Unhandled worker exception: {detailed_error}",
+                        error=detailed_error,
+                        payload={"exception_type": type(exc).__name__, "exception": str(exc)},
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("job_recovery_failed", extra={"job_id": job.id, "state": job.state})
 
     def _transition_or_log(
         self,
