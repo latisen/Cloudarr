@@ -14,9 +14,9 @@ data:
   CLOUDARR_PROVIDER_NAME: "realdebrid"
   CLOUDARR_REALDEBRID_API_BASE: "https://api.real-debrid.com/rest/1.0"
   CLOUDARR_WEBDAV_URL: "https://dav.real-debrid.com/"
-  CLOUDARR_WEBDAV_MOUNT_PATH: "/mnt/torbox"
+  CLOUDARR_WEBDAV_MOUNT_PATH: "/mnt/debrid"
   CLOUDARR_WEBDAV_REMOTE_ROOT: "links"
-  CLOUDARR_SYMLINK_STAGING_ROOT: "/mnt/debrid/imports"
+  CLOUDARR_SYMLINK_STAGING_ROOT: "/data/downloads"
   CLOUDARR_QBIT_USERNAME: "sonarr"
   CLOUDARR_QBIT_REQUIRE_AUTH: "true"
   CLOUDARR_DEFAULT_CATEGORY: "sonarr"
@@ -73,13 +73,15 @@ spec:
             [
               "sh",
               "-c",
-              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config && chmod 0775 /config && chmod 0664 /config/cloudarr.db && (chown -R 1000:1000 /mnt/debrid || true)",
+              "mkdir -p /config /mnt/debrid/imports /data/downloads/sonarr && touch /config/cloudarr.db && chown -R 1000:1000 /config /data/downloads && chmod 0775 /config /data/downloads && chmod 0664 /config/cloudarr.db && (chown -R 1000:1000 /mnt/debrid || true)",
             ]
           volumeMounts:
             - name: config
               mountPath: /config
             - name: media-debrid
               mountPath: /mnt/debrid
+            - name: media-data
+              mountPath: /data
       serviceAccountName: default
       tolerations:
         - key: "node.kubernetes.io/not-ready"
@@ -253,9 +255,9 @@ spec:
             - "-c"
             - |
               set -eu
-              mkdir -p /root/.config/rclone /mnt/torbox /tmp/rclone-cache
-              fusermount3 -u /mnt/torbox >/dev/null 2>&1 || true
-              umount -l /mnt/torbox >/dev/null 2>&1 || true
+              mkdir -p /root/.config/rclone /mnt/debrid /tmp/rclone-cache /data/downloads/sonarr
+              fusermount3 -u /mnt/debrid >/dev/null 2>&1 || true
+              umount -l /mnt/debrid >/dev/null 2>&1 || true
               PASSWORD_OBSCURED="$(rclone obscure "$CLOUDARR_WEBDAV_PASSWORD")"
               cat > /root/.config/rclone/rclone.conf <<EOF
               [realdebrid]
@@ -266,11 +268,11 @@ spec:
               pass = ${PASSWORD_OBSCURED}
               EOF
               cleanup() {
-                fusermount3 -u /mnt/torbox >/dev/null 2>&1 || true
-                umount -l /mnt/torbox >/dev/null 2>&1 || true
+                fusermount3 -u /mnt/debrid >/dev/null 2>&1 || true
+                umount -l /mnt/debrid >/dev/null 2>&1 || true
               }
               trap cleanup EXIT INT TERM
-              rclone mount realdebrid: /mnt/torbox \
+              rclone mount realdebrid: /mnt/debrid \
                 --dir-cache-time 30s \
                 --cache-dir /tmp/rclone-cache \
                 --vfs-cache-mode writes \
@@ -304,8 +306,6 @@ spec:
             - name: media-debrid
               mountPath: /mnt/debrid
               mountPropagation: HostToContainer
-            - name: torbox-mount
-              mountPath: /mnt/torbox
           resources:
             requests:
               cpu: 100m
@@ -326,10 +326,6 @@ spec:
           hostPath:
             path: /srv/media/mnt/debrid
             type: DirectoryOrCreate
-        - name: torbox-mount
-          emptyDir:
-            medium: Memory
-            sizeLimit: 1Gi
 ---
 apiVersion: v1
 kind: Service
