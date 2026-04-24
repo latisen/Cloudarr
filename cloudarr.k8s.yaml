@@ -167,10 +167,6 @@ spec:
           hostPath:
             path: /srv/media/data
             type: DirectoryOrCreate
-        - name: media-debrid
-          hostPath:
-            path: /srv/media/mnt/debrid
-            type: DirectoryOrCreate
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -205,13 +201,13 @@ spec:
             [
               "sh",
               "-c",
-              "mkdir -p /config /mnt/debrid/imports && touch /config/cloudarr.db && chown -R 1000:1000 /config && chmod 0775 /config && chmod 0664 /config/cloudarr.db && (chown -R 1000:1000 /mnt/debrid || true)",
+              "mkdir -p /config /data/downloads/sonarr && touch /config/cloudarr.db && chown -R 1000:1000 /config /data/downloads && chmod 0775 /config /data/downloads && chmod 0664 /config/cloudarr.db",
             ]
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: media-debrid
-              mountPath: /mnt/debrid
+            - name: media-data
+              mountPath: /data
       serviceAccountName: default
       tolerations:
         - key: "node.kubernetes.io/not-ready"
@@ -255,7 +251,7 @@ spec:
             - "-c"
             - |
               set -eu
-              mkdir -p /root/.config/rclone /mnt/debrid /tmp/rclone-cache /data/downloads/sonarr
+              mkdir -p /root/.config/rclone /mnt/debrid /tmp/rclone-cache
               fusermount3 -u /mnt/debrid >/dev/null 2>&1 || true
               umount -l /mnt/debrid >/dev/null 2>&1 || true
               PASSWORD_OBSCURED="$(rclone obscure "$CLOUDARR_WEBDAV_PASSWORD")"
@@ -302,10 +298,8 @@ spec:
               mountPath: /config
             - name: media-data
               mountPath: /data
-              mountPropagation: HostToContainer
-            - name: media-debrid
-              mountPath: /mnt/debrid
-              mountPropagation: HostToContainer
+            - name: fuse-device
+              mountPath: /dev/fuse
           resources:
             requests:
               cpu: 100m
@@ -322,10 +316,10 @@ spec:
           hostPath:
             path: /srv/media/data
             type: DirectoryOrCreate
-        - name: media-debrid
+        - name: fuse-device
           hostPath:
-            path: /srv/media/mnt/debrid
-            type: DirectoryOrCreate
+            path: /dev/fuse
+            type: CharDevice
 ---
 apiVersion: v1
 kind: Service
