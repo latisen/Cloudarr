@@ -7,6 +7,7 @@ that Cloudarr can mount and use for symlink-only imports.
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import Any
 
 import httpx
@@ -17,6 +18,36 @@ from app.services.provider.base import DebridProvider, ProviderStatus, ProviderS
 
 class RealDebridProvider(DebridProvider):
     """Real-Debrid REST API client."""
+
+    _MEDIA_EXTENSIONS = {
+        ".mkv",
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".m4v",
+        ".wmv",
+        ".ts",
+        ".m2ts",
+        ".mpg",
+        ".mpeg",
+    }
+
+    _AUXILIARY_EXTENSIONS = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".nfo",
+        ".sfv",
+        ".srr",
+        ".txt",
+        ".md",
+        ".url",
+        ".ico",
+        ".bmp",
+        ".cue",
+    }
 
     def __init__(self, settings: Settings) -> None:
         self._base = settings.realdebrid_api_base.rstrip("/")
@@ -36,6 +67,39 @@ class RealDebridProvider(DebridProvider):
 
     def _normalized_path(self, path: str) -> str:
         return path if path.startswith("/") else f"/{path}"
+
+    def _select_remote_path(self, files: list[dict[str, Any]]) -> str | None:
+        scored_paths: list[tuple[int, int, int, str]] = []
+
+        for index, file_item in enumerate(files):
+            file_path = str(file_item.get("path") or file_item.get("filename") or "").strip()
+            if not file_path:
+                continue
+
+            lower_path = file_path.lower()
+            name = PurePosixPath(file_path).name.lower()
+            ext = PurePosixPath(file_path).suffix.lower()
+            size = int(file_item.get("bytes") or file_item.get("filesize") or 0)
+
+            is_sample = "sample" in lower_path
+            is_proof = "proof" in lower_path
+            is_auxiliary = ext in self._AUXILIARY_EXTENSIONS
+            is_media = ext in self._MEDIA_EXTENSIONS
+
+            if is_media and not is_sample:
+                priority = 4 if not is_proof else 3
+            elif not is_auxiliary and not is_sample:
+                priority = 2 if not is_proof else 1
+            else:
+                priority = 0
+
+            scored_paths.append((priority, size, -index, file_path))
+
+        if not scored_paths:
+            return None
+
+        best = max(scored_paths)
+        return best[3] if best[0] > 0 else scored_paths[0][3]
 
     async def _post_form(self, *, path: str, data: dict[str, str], files: dict[str, tuple[str, bytes, str]] | None = None) -> Any:
         url = f"{self._base}{self._normalized_path(path)}"
@@ -100,18 +164,13 @@ class RealDebridProvider(DebridProvider):
             if progress > 1.0:
                 progress /= 100.0
 
-        links = item.get("links") or []
         files = item.get("files") or []
         ready = status.lower() in {"downloaded", "uploading", "compressing"}
         error: str | None = None
         remote_path: str | None = None
 
         if ready and files:
-            # Use the path from the first file; this path is available via WebDAV
-            # e.g., "MagnetLink123/filename.mkv" or "TorrentName/subfolder/file.mkv"
-            file_path = str(files[0].get("path") or files[0].get("filename") or "")
-            if file_path:
-                remote_path = file_path
+            remote_path = self._select_remote_path(files)
         elif status.lower() in {"error", "virus", "dead"}:
             error = item.get("message") or status
 
