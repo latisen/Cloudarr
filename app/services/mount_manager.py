@@ -75,8 +75,10 @@ class WebDavMountManager:
                         )
                         return None
 
-                    if name in files:
-                        return Path(current_root) / name
+                    lower_map = {entry.lower(): entry for entry in files}
+                    matched = lower_map.get(name.lower())
+                    if matched:
+                        return Path(current_root) / matched
             except OSError:
                 continue
 
@@ -112,9 +114,19 @@ class WebDavMountManager:
         """Force refresh and validate visibility of remote path in mounted filesystem."""
 
         rel = remote_path.lstrip("/")
-        candidates = [self.mount_path / rel]
-        if self._remote_root and not rel.startswith(f"{self._remote_root}/"):
-            candidates.insert(0, self.mount_path / self._remote_root / rel)
+        candidates: list[Path] = [self.mount_path / rel]
+        if self._remote_root:
+            prefixed = [
+                self.mount_path / self._remote_root / rel,
+                self.mount_path / self._remote_root / "torrents" / rel,
+            ]
+            for candidate in reversed(prefixed):
+                if candidate not in candidates:
+                    candidates.insert(0, candidate)
+
+        torrents_candidate = self.mount_path / "torrents" / rel
+        if torrents_candidate not in candidates:
+            candidates.append(torrents_candidate)
 
         for attempt in range(1, self.settings.refresh_max_attempts + 1):
             logger.info(
