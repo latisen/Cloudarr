@@ -165,12 +165,17 @@ class RealDebridProvider(DebridProvider):
                 progress /= 100.0
 
         files = item.get("files") or []
-        ready = status.lower() in {"downloaded", "uploading", "compressing"}
+        selected_path = self._select_remote_path(files)
+        ready_status = status.lower() in {"downloaded", "uploading", "compressing"}
+        # Real-Debrid can remain in "downloading" even when progress has reached 100%.
+        # If we already have a concrete mountable path, allow the pipeline to continue.
+        ready_progress = status.lower() == "downloading" and progress >= 0.999 and bool(selected_path)
+        ready = ready_status or ready_progress
         error: str | None = None
         remote_path: str | None = None
 
-        if ready and files:
-            remote_path = self._select_remote_path(files)
+        if ready and selected_path:
+            remote_path = selected_path
         elif status.lower() in {"error", "virus", "dead"}:
             error = item.get("message") or status
 
