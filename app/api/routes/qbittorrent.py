@@ -19,7 +19,7 @@ from app.core.config import Settings, get_settings
 from app.models.enums import JobState
 from app.models.job import Job
 from app.schemas.qbittorrent import QBittorrentInfoItem
-from app.services.job_service import JobService
+from app.services.job_service import JobService, derive_display_name
 
 router = APIRouter(prefix="/api/v2", tags=["qbittorrent-shim"])
 
@@ -159,7 +159,7 @@ async def torrents_add(
     if magnet:
         service.create_received_job(
             magnet_uri=magnet,
-            name=magnet[:120],
+            name=derive_display_name(magnet, magnet[:120]),
             category=selected_category,
             save_path=selected_save_path,
         )

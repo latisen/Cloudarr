@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import time
+from urllib.parse import parse_qs, unquote_plus, urlparse
 
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
@@ -25,6 +26,19 @@ def derive_info_hash(magnet: str | None, fallback: str) -> str:
 
     base = magnet or fallback
     return hashlib.sha1(base.encode("utf-8"), usedforsecurity=False).hexdigest()
+
+
+def derive_display_name(magnet_uri: str | None, fallback: str) -> str:
+    """Extract a human-friendly title from a magnet URI when available."""
+
+    if magnet_uri:
+        parsed = urlparse(magnet_uri)
+        dn_values = parse_qs(parsed.query).get("dn") or []
+        for value in dn_values:
+            title = unquote_plus(value).strip()
+            if title:
+                return title
+    return fallback
 
 
 class JobService:

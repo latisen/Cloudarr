@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
+from app.services.job_service import derive_display_name
 from app.services.provider.base import DebridProvider, ProviderStatus, ProviderSubmission
 
 
@@ -142,7 +143,10 @@ class RealDebridProvider(DebridProvider):
         payload = await self._post_form(path=self._add_magnet_path, data={"magnet": magnet_uri})
         torrent_id = str(payload.get("id") or "")
         await self._post_form(path=f"{self._select_files_path}/{torrent_id}", data={"files": "all"})
-        return ProviderSubmission(provider_job_id=torrent_id, display_name=magnet_uri)
+        return ProviderSubmission(
+            provider_job_id=torrent_id,
+            display_name=derive_display_name(magnet_uri, magnet_uri),
+        )
 
     async def submit_torrent_bytes(self, filename: str, data: bytes) -> ProviderSubmission:
         upload = await self._put_file(path=self._add_torrent_path, filename=filename, payload=data)
