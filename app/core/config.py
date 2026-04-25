@@ -56,6 +56,7 @@ class Settings(BaseSettings):
 
     poll_interval_seconds: int = Field(default=15, ge=3, le=600)
     max_submit_retries: int = Field(default=3, ge=1, le=10)
+    provider_wait_timeout_seconds: int = Field(default=7200, ge=60, le=604800)
     enable_embedded_worker: bool = True
 
 

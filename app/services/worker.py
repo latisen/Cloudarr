@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -199,6 +200,22 @@ class JobWorker:
                     extra={"job_id": job.id, "state": job.state},
                 )
                 return
+
+            age_seconds = (dt.datetime.utcnow() - job.updated_at).total_seconds()
+            if age_seconds >= self._settings.provider_wait_timeout_seconds:
+                self._transition_or_log(
+                    db,
+                    service,
+                    job,
+                    JobState.NEEDS_ATTENTION,
+                    message="Provider wait timeout",
+                    error=(
+                        "Provider not ready within timeout; "
+                        f"status={status.status}; progress={status.progress:.3f}"
+                    ),
+                )
+                return
+
             job.progress = status.progress
             if status.is_failed:
                 self._transition_or_log(
