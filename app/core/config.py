@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     refresh_retry_seconds: int = Field(default=10, ge=1, le=300)
     webdav_refresh_command: str = "rclone rc vfs/refresh recursive=true"
     webdav_remount_command: str = "systemctl restart torbox-rclone-mount.service"
+    webdav_command_timeout_seconds: int = Field(default=20, ge=1, le=600)
+    webdav_fallback_search_max_entries: int = Field(default=5000, ge=100, le=100000)
 
     poll_interval_seconds: int = Field(default=15, ge=3, le=600)
     max_submit_retries: int = Field(default=3, ge=1, le=10)

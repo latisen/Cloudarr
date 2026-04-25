@@ -24,10 +24,63 @@ class WebDavMountManager:
 
     def _run_shell(self, cmd: str) -> tuple[bool, str]:
         try:
-            result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.settings.webdav_command_timeout_seconds,
+            )
             return True, result.stdout.strip()
+        except subprocess.TimeoutExpired as exc:
+            return False, f"command timed out after {self.settings.webdav_command_timeout_seconds}s: {cmd}"
         except subprocess.CalledProcessError as exc:
             return False, (exc.stderr or exc.stdout or str(exc)).strip()
+
+    def _resolve_fallback_limited(self, rel: str) -> Path | None:
+        """Fallback filename search with bounded directory traversal.
+
+        This avoids unbounded rglob() walks on large mounts that can stall the worker.
+        """
+
+        name = Path(rel).name
+        if not name:
+            return None
+
+        roots: list[Path] = []
+        if self._remote_root:
+            roots.append(self.mount_path / self._remote_root)
+        roots.append(self.mount_path)
+
+        max_entries = self.settings.webdav_fallback_search_max_entries
+        visited_entries = 0
+        seen: set[Path] = set()
+
+        for root in roots:
+            if root in seen or not root.exists() or not root.is_dir():
+                continue
+            seen.add(root)
+            try:
+                for current_root, dirs, files in os.walk(root):
+                    visited_entries += len(dirs) + len(files)
+                    if visited_entries > max_entries:
+                        logger.warning(
+                            "webdav_fallback_search_capped",
+                            extra={
+                                "state": "REFRESHING_WEBDAV",
+                                "max_entries": max_entries,
+                                "target_name": name,
+                            },
+                        )
+                        return None
+
+                    if name in files:
+                        return Path(current_root) / name
+            except OSError:
+                continue
+
+        return None
 
     def is_mount_available(self) -> tuple[bool, str]:
         if not self.mount_path.exists():
@@ -63,37 +116,21 @@ class WebDavMountManager:
         if self._remote_root and not rel.startswith(f"{self._remote_root}/"):
             candidates.insert(0, self.mount_path / self._remote_root / rel)
 
-        def resolve_fallback() -> Path | None:
-            """Fallback to filename-based search when provider path shape differs from mount layout."""
-
-            name = Path(rel).name
-            if not name:
-                return None
-
-            roots: list[Path] = []
-            if self._remote_root:
-                roots.append(self.mount_path / self._remote_root)
-            roots.append(self.mount_path)
-
-            seen: set[Path] = set()
-            for root in roots:
-                if root in seen or not root.exists() or not root.is_dir():
-                    continue
-                seen.add(root)
-                try:
-                    for match in root.rglob(name):
-                        if match.exists():
-                            return match
-                except OSError:
-                    continue
-            return None
-
         for attempt in range(1, self.settings.refresh_max_attempts + 1):
+            logger.info(
+                "webdav_visibility_attempt",
+                extra={
+                    "state": "REFRESHING_WEBDAV",
+                    "attempt": attempt,
+                    "max_attempts": self.settings.refresh_max_attempts,
+                    "remote_path": remote_path,
+                },
+            )
             for candidate in candidates:
                 if candidate.exists():
                     return True, f"visible_after_attempt_{attempt}"
 
-            resolved = resolve_fallback()
+            resolved = self._resolve_fallback_limited(rel)
             if resolved is not None:
                 rel_resolved = resolved.relative_to(self.mount_path).as_posix()
                 return True, f"resolved_relative_path=/{rel_resolved}"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -58,3 +59,39 @@ async def test_refresh_visibility_resolves_by_filename(tmp_path: Path) -> None:
     ok, msg = await manager.ensure_remote_path_visible("/Andor S02E12.mkv")
     assert ok
     assert msg == "resolved_relative_path=/links/series/Andor S02E12.mkv"
+
+
+def test_run_shell_times_out(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    settings = Settings(
+        webdav_mount_path=str(tmp_path),
+        webdav_command_timeout_seconds=1,
+        webdav_refresh_command="true",
+        webdav_remount_command="true",
+    )
+    manager = WebDavMountManager(settings)
+
+    def fake_run(*args, **kwargs):
+        _ = (args, kwargs)
+        raise subprocess.TimeoutExpired(cmd="sleep 999", timeout=1)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    ok, msg = manager._run_shell("sleep 999")
+    assert not ok
+    assert "timed out" in msg
+
+
+def test_resolve_fallback_limited_respects_cap(tmp_path: Path) -> None:
+    settings = Settings(
+        webdav_mount_path=str(tmp_path),
+        webdav_fallback_search_max_entries=100,
+    )
+    manager = WebDavMountManager(settings)
+
+    root = tmp_path / "links"
+    root.mkdir(parents=True, exist_ok=True)
+    # Build enough files to exceed the cap before any expected match.
+    for idx in range(200):
+        (root / f"f{idx}.txt").write_text("x")
+
+    result = manager._resolve_fallback_limited("/target.mkv")
+    assert result is None
