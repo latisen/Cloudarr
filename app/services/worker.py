@@ -8,11 +8,12 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.enums import JobState
-from app.models.job import Job
+from app.models.job import Job, JobEvent
 from app.services.job_service import JobService
 from app.services.mount_manager import WebDavMountManager
 from app.services.provider.base import DebridProvider
@@ -103,6 +104,14 @@ class JobWorker:
 
         service.transition(job, new_state, message=message, payload=payload, error=error)
         return True
+
+    def _state_entered_at(self, db: Session, job_id: str, state: JobState) -> dt.datetime | None:
+        return db.scalar(
+            select(JobEvent.created_at)
+            .where(JobEvent.job_id == job_id, JobEvent.state == state.value)
+            .order_by(desc(JobEvent.created_at))
+            .limit(1)
+        )
 
     async def _process_job(self, db: Session, service: JobService, job: Job) -> None:
         state = JobState(job.state)
@@ -201,7 +210,8 @@ class JobWorker:
                 )
                 return
 
-            age_seconds = (dt.datetime.utcnow() - job.updated_at).total_seconds()
+            waiting_since = self._state_entered_at(db, job.id, JobState.WAITING_FOR_TORBOX) or job.updated_at
+            age_seconds = (dt.datetime.utcnow() - waiting_since).total_seconds()
             if age_seconds >= self._settings.provider_wait_timeout_seconds:
                 self._transition_or_log(
                     db,

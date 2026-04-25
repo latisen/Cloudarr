@@ -3,10 +3,12 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.enums import JobState
+from app.models.job import JobEvent
 from app.services.job_service import JobService
 from app.services.provider.base import ProviderStatus, ProviderSubmission
 from app.services.worker import JobWorker
@@ -59,9 +61,15 @@ async def test_waiting_for_torbox_times_out_to_needs_attention(db_session: Sessi
     service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="ok")
     service.transition(job, JobState.WAITING_FOR_TORBOX, message="ok")
 
-    # Simulate that the job has been waiting for a long time already.
-    job.updated_at = dt.datetime.utcnow() - dt.timedelta(seconds=7200)
-    db_session.add(job)
+    # Simulate that the job entered WAITING_FOR_TORBOX long ago.
+    waiting_event = db_session.scalar(
+        select(JobEvent)
+        .where(JobEvent.job_id == job.id, JobEvent.state == JobState.WAITING_FOR_TORBOX.value)
+        .order_by(JobEvent.created_at.desc())
+    )
+    assert waiting_event is not None
+    waiting_event.created_at = dt.datetime.utcnow() - dt.timedelta(seconds=7200)
+    db_session.add(waiting_event)
     db_session.commit()
     db_session.refresh(job)
 
