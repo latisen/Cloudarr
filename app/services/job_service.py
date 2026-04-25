@@ -85,10 +85,11 @@ class JobService:
         save_path: str,
         torrent_file_path: str | None = None,
     ) -> Job:
+        normalized_name = derive_display_name(magnet_uri, name)
         info_hash = derive_info_hash(magnet_uri, torrent_file_path or name)
         existing = self.db.scalar(select(Job).where(Job.info_hash == info_hash))
         if existing:
-            better_name = derive_display_name(magnet_uri, name)
+            better_name = normalized_name
             changed = False
             if better_name and (_looks_like_magnet_name(existing.torrent_name) or not existing.torrent_name.strip()):
                 existing.torrent_name = better_name
@@ -106,8 +107,8 @@ class JobService:
             info_hash=info_hash,
             magnet_uri=magnet_uri,
             torrent_file_path=torrent_file_path,
-            sonarr_title=name,
-            torrent_name=name,
+            sonarr_title=normalized_name,
+            torrent_name=normalized_name,
             category=category,
             save_path=save_path,
             state=JobState.RECEIVED_FROM_SONARR.value,
