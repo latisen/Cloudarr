@@ -261,6 +261,8 @@ class JobWorker:
                     )
                     return
                 job.torbox_remote_path = status.remote_path
+                # WebDAV visibility retries should start fresh once the provider has finished.
+                job.retries = 0
                 db.add(job)
                 db.commit()
                 db.refresh(job)
@@ -294,6 +296,16 @@ class JobWorker:
                 )
                 return
             if not visible:
+                logger.info(
+                    "webdav_path_not_visible",
+                    extra={
+                        "job_id": job.id,
+                        "state": job.state,
+                        "remote_path": job.torbox_remote_path,
+                        "retry_count": job.retries,
+                        "max_retries": self._settings.max_submit_retries,
+                    },
+                )
                 self._transition_or_log(
                     db,
                     service,
@@ -325,6 +337,15 @@ class JobWorker:
                 )
                 return
             job.retries += 1
+            logger.info(
+                "webdav_retrying",
+                extra={
+                    "job_id": job.id,
+                    "state": job.state,
+                    "retry_count": job.retries,
+                    "max_retries": self._settings.max_submit_retries,
+                },
+            )
             db.add(job)
             db.commit()
             db.refresh(job)

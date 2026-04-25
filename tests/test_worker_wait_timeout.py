@@ -34,6 +34,26 @@ class _DummyProvider:
         return True, "ok"
 
 
+class _ReadyProvider:
+    async def submit_magnet(self, magnet_uri: str) -> ProviderSubmission:
+        return ProviderSubmission(provider_job_id="dummy", display_name="dummy")
+
+    async def submit_torrent_bytes(self, filename: str, data: bytes) -> ProviderSubmission:
+        return ProviderSubmission(provider_job_id="dummy", display_name=filename)
+
+    async def get_status(self, provider_job_id: str) -> ProviderStatus:
+        return ProviderStatus(
+            provider_job_id=provider_job_id,
+            status="completed",
+            progress=1.0,
+            remote_path="/links/test.mkv",
+            error=None,
+        )
+
+    async def healthcheck(self) -> tuple[bool, str]:
+        return True, "ok"
+
+
 class _DummyMountManager:
     async def ensure_remote_path_visible(self, remote_path: str) -> tuple[bool, str]:
         return False, "not-used"
@@ -118,3 +138,49 @@ async def test_waiting_for_torbox_stays_waiting_before_timeout(db_session: Sessi
 
     db_session.refresh(job)
     assert job.state == JobState.WAITING_FOR_TORBOX.value
+
+
+@pytest.mark.asyncio
+async def test_provider_ready_resets_retries_before_webdav_retry_budget(db_session: Session) -> None:
+    service = JobService(db_session)
+    settings = Settings(max_submit_retries=3)
+    job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:ghi",
+        name="test3",
+        category="sonarr",
+        save_path="/links",
+    )
+    service.transition(job, JobState.VALIDATING, message="ok")
+    job.torbox_job_id = "provider-3"
+    job.retries = settings.max_submit_retries
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+    service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="ok")
+    service.transition(job, JobState.WAITING_FOR_TORBOX, message="ok")
+
+    worker = JobWorker(
+        db_factory=lambda: db_session,
+        settings=settings,
+        provider=_ReadyProvider(),
+        mount_manager=_DummyMountManager(),
+        symlink_manager=_DummySymlinkManager(),
+    )
+
+    await worker._process_job(db_session, service, job)
+    db_session.refresh(job)
+    assert job.state == JobState.TORBOX_READY.value
+    assert job.retries == 0
+
+    await worker._process_job(db_session, service, job)
+    db_session.refresh(job)
+    assert job.state == JobState.REFRESHING_WEBDAV.value
+
+    await worker._process_job(db_session, service, job)
+    db_session.refresh(job)
+    assert job.state == JobState.NEEDS_ATTENTION.value
+
+    await worker._process_job(db_session, service, job)
+    db_session.refresh(job)
+    assert job.state == JobState.REFRESHING_WEBDAV.value
+    assert job.retries == 1
