@@ -212,6 +212,18 @@ class JobWorker:
 
             waiting_since = self._state_entered_at(db, job.id, JobState.WAITING_FOR_TORBOX) or job.updated_at
             age_seconds = (dt.datetime.utcnow() - waiting_since).total_seconds()
+            logger.info(
+                "provider_waiting",
+                extra={
+                    "job_id": job.id,
+                    "state": job.state,
+                    "provider_job_id": job.torbox_job_id or "",
+                    "provider_status": status.status,
+                    "provider_progress": f"{status.progress:.3f}",
+                    "waiting_age_seconds": int(age_seconds),
+                    "wait_timeout_seconds": self._settings.provider_wait_timeout_seconds,
+                },
+            )
             if age_seconds >= self._settings.provider_wait_timeout_seconds:
                 self._transition_or_log(
                     db,
