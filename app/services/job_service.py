@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import time
+import re
 from urllib.parse import parse_qs, unquote_plus, urlparse
 
 from sqlalchemy import select
@@ -38,7 +39,19 @@ def derive_display_name(magnet_uri: str | None, fallback: str) -> str:
             title = unquote_plus(value).strip()
             if title:
                 return title
+
+        # Fallback for magnet strings that arrive in formats parse_qs/urlparse does not preserve well.
+        match = re.search(r"(?:^|[?&])dn=([^&]+)", magnet_uri, flags=re.IGNORECASE)
+        if match:
+            title = unquote_plus(match.group(1)).strip()
+            if title:
+                return title
     return fallback
+
+
+def _looks_like_magnet_name(value: str) -> bool:
+    text = value.strip().lower()
+    return text.startswith("magnet:?") or "&xt=urn:btih:" in text
 
 
 class JobService:
@@ -75,6 +88,18 @@ class JobService:
         info_hash = derive_info_hash(magnet_uri, torrent_file_path or name)
         existing = self.db.scalar(select(Job).where(Job.info_hash == info_hash))
         if existing:
+            better_name = derive_display_name(magnet_uri, name)
+            changed = False
+            if better_name and (_looks_like_magnet_name(existing.torrent_name) or not existing.torrent_name.strip()):
+                existing.torrent_name = better_name
+                changed = True
+            if better_name and (_looks_like_magnet_name(existing.sonarr_title) or not existing.sonarr_title.strip()):
+                existing.sonarr_title = better_name
+                changed = True
+            if changed:
+                self.db.add(existing)
+                self._commit_with_retry(context="update_existing_received_job")
+                self.db.refresh(existing)
             return existing
 
         job = Job(
