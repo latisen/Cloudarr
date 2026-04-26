@@ -109,8 +109,10 @@ Implemented routes:
 - `GET /api/v2/app/webapiVersion`
 - `POST /api/v2/torrents/add`
 - `GET /api/v2/torrents/info`
+- `GET /api/v2/torrents/files`
 - `GET /api/v2/torrents/properties`
 - `GET /api/v2/sync/maindata`
+- `POST /api/v2/torrents/delete`
 
 See `docs/SONARR_COMPATIBILITY.md` for Sonarr setup details.
 

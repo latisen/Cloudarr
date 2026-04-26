@@ -14,6 +14,7 @@ Important limitation: Real-Debrid's official API does not expose a WebDAV filesy
 - `GET /api/v2/app/webapiVersion`
 - `POST /api/v2/torrents/add`
 - `GET /api/v2/torrents/info`
+- `GET /api/v2/torrents/files`
 - `GET /api/v2/torrents/properties`
 - `GET /api/v2/sync/maindata`
 - `POST /api/v2/torrents/delete`

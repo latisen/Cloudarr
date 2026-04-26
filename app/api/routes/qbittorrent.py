@@ -204,6 +204,45 @@ async def torrents_info(
     return JSONResponse([item.model_dump() for item in _to_info_items(jobs)])
 
 
+@router.get("/torrents/files")
+async def torrents_files(
+    request: Request,
+    hash: str,
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    """qBittorrent compatibility shim endpoint used by Sonarr import handling."""
+    auth_error = _require_auth(request, settings)
+    if auth_error:
+        return auth_error
+
+    service = JobService(db)
+    job = service.get_by_hash(hash)
+    if not job:
+        return JSONResponse([])
+
+    remote_name = (job.torbox_remote_path or "").lstrip("/")
+    if not remote_name:
+        fallback_name = (job.torrent_name or job.sonarr_title or job.info_hash).strip()
+        remote_name = f"{fallback_name}.mkv"
+
+    progress = 1.0 if JobState(job.state) == JobState.READY_FOR_IMPORT else max(0.0, min(1.0, job.progress))
+    return JSONResponse(
+        [
+            {
+                "index": 0,
+                "name": remote_name,
+                "size": 1000,
+                "progress": progress,
+                "priority": 1,
+                "is_seed": False,
+                "piece_range": [0, 0],
+                "availability": progress,
+            }
+        ]
+    )
+
+
 @router.get("/torrents/categories")
 async def torrents_categories(
     request: Request,
