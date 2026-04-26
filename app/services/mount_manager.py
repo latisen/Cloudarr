@@ -140,6 +140,9 @@ class WebDavMountManager:
             )
             for candidate in candidates:
                 if candidate.exists():
+                    rel_found = candidate.relative_to(self.mount_path).as_posix()
+                    if rel_found != rel:
+                        return True, f"resolved_relative_path=/{rel_found}"
                     return True, f"visible_after_attempt_{attempt}"
 
             resolved = self._resolve_fallback_limited(rel)

@@ -79,7 +79,28 @@ async def test_refresh_visibility_checks_links_torrents_candidate(tmp_path: Path
 
     ok, msg = await manager.ensure_remote_path_visible("/andor.s01e02.2160p.uhd.bluray.x265-stories.mkv")
     assert ok
-    assert msg == "visible_after_attempt_1"
+    assert msg == "resolved_relative_path=/links/torrents/andor.s01e02.2160p.uhd.bluray.x265-stories.mkv"
+
+
+@pytest.mark.asyncio
+async def test_refresh_visibility_checks_root_torrents_candidate(tmp_path: Path) -> None:
+    settings = Settings(
+        webdav_mount_path=str(tmp_path),
+        webdav_remote_root="links",
+        refresh_max_attempts=1,
+        refresh_retry_seconds=0,
+        webdav_refresh_command="true",
+        webdav_remount_command="false",
+    )
+    manager = WebDavMountManager(settings)
+
+    target = tmp_path / "torrents" / "Andor S02E01 One Year Later 2160p DSNP WEB-DL DDP5 1 DV HDR H 265-NTb.mkv"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.touch()
+
+    ok, msg = await manager.ensure_remote_path_visible("/Andor S02E01 One Year Later 2160p DSNP WEB-DL DDP5 1 DV HDR H 265-NTb.mkv")
+    assert ok
+    assert msg == "resolved_relative_path=/torrents/Andor S02E01 One Year Later 2160p DSNP WEB-DL DDP5 1 DV HDR H 265-NTb.mkv"
 
 
 @pytest.mark.asyncio
