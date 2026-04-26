@@ -16,6 +16,7 @@ Important limitation: Real-Debrid's official API does not expose a WebDAV filesy
 - `GET /api/v2/torrents/info`
 - `GET /api/v2/torrents/properties`
 - `GET /api/v2/sync/maindata`
+- `POST /api/v2/torrents/delete`
 
 ## Sonarr Download Client Configuration
 

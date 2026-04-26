@@ -301,6 +301,27 @@ async def torrent_properties(
     )
 
 
+@router.post("/torrents/delete")
+async def torrents_delete(
+    request: Request,
+    hashes: str = Form(default=""),
+    deleteFiles: str = Form(default="false"),  # noqa: N803
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    """qBittorrent compatibility shim: Sonarr calls this after import to remove the torrent."""
+    auth_error = _require_auth(request, settings)
+    if auth_error:
+        return auth_error
+
+    service = JobService(db)
+    for hash_str in (h.strip() for h in hashes.split("|") if h.strip()):
+        job = service.get_by_hash(hash_str)
+        if job and JobState(job.state) == JobState.READY_FOR_IMPORT:
+            service.transition(job, JobState.IMPORTED_OPTIONAL_DETECTED, message="Imported by Sonarr")
+    return PlainTextResponse("Ok.")
+
+
 @router.get("/sync/maindata")
 async def sync_maindata(
     request: Request,
