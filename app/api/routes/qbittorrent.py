@@ -25,6 +25,17 @@ from app.services.job_service import JobService, derive_display_name
 router = APIRouter(prefix="/api/v2", tags=["qbittorrent-shim"])
 
 
+def _repair_ready_job_layout(request: Request, job: Job) -> None:
+    if JobState(job.state) != JobState.READY_FOR_IMPORT:
+        return
+    if not job.exported_path or not job.torbox_remote_path:
+        return
+    runtime = getattr(request.app.state, "runtime", None)
+    if runtime is None:
+        return
+    runtime.symlink_manager.repair_single_file_layout(job.exported_path, job.torbox_remote_path)
+
+
 def _sid_serializer(settings: Settings) -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(secret_key=settings.secret_key, salt="cloudarr-qbit-sid")
 
@@ -239,6 +250,8 @@ async def torrents_info(
     if hashes and hashes != "all":
         wanted = {value.strip() for value in hashes.split("|") if value.strip()}
         jobs = [job for job in jobs if job.info_hash in wanted]
+    for job in jobs:
+        _repair_ready_job_layout(request, job)
     return JSONResponse([item.model_dump() for item in _to_info_items(jobs)])
 
 
@@ -258,6 +271,7 @@ async def torrents_files(
     job = service.get_by_hash(hash)
     if not job:
         return JSONResponse([])
+    _repair_ready_job_layout(request, job)
 
     remote_name = (job.torbox_remote_path or "").lstrip("/")
     if not remote_name:
@@ -368,6 +382,7 @@ async def torrent_properties(
     job = service.get_by_hash(hash)
     if not job:
         return Response(status_code=status.HTTP_404_NOT_FOUND)
+    _repair_ready_job_layout(request, job)
 
     return JSONResponse(
         {

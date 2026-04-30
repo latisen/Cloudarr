@@ -61,6 +61,30 @@ class SymlinkManager:
 
         return str(target_root)
 
+    def repair_single_file_layout(self, exported_path: str, remote_rel_path: str) -> bool:
+        """Repair legacy flat exports to Sonarr's expected torrents/ layout."""
+
+        exported_root = Path(exported_path).resolve()
+        if not exported_root.exists() or not exported_root.is_dir():
+            return False
+
+        remote_name = Path(remote_rel_path.lstrip("/")).name
+        if not remote_name:
+            return False
+
+        legacy_link = exported_root / remote_name
+        if not legacy_link.exists() and not legacy_link.is_symlink():
+            return False
+
+        torrents_dir = exported_root / "torrents"
+        torrents_dir.mkdir(parents=True, exist_ok=True)
+        repaired_link = torrents_dir / remote_name
+        if repaired_link.exists() or repaired_link.is_symlink():
+            return False
+
+        legacy_link.rename(repaired_link)
+        return True
+
     def find_broken_symlinks(self, root: str | None = None) -> list[str]:
         base = Path(root).resolve() if root else self.staging_root
         broken: list[str] = []

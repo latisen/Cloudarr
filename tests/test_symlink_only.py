@@ -36,6 +36,28 @@ def test_symlink_manager_preserves_relative_dirs_for_single_file(tmp_path: Path)
     assert linked.resolve() == media.resolve()
 
 
+def test_symlink_manager_repairs_legacy_flat_single_file_layout(tmp_path: Path) -> None:
+    mount = tmp_path / "mnt"
+    staging = tmp_path / "links"
+    mount.mkdir(parents=True)
+    media = mount / "episode.mkv"
+    media.write_text("dummy")
+
+    exported = staging / "sonarr" / "abc123"
+    exported.mkdir(parents=True)
+    legacy_link = exported / "episode.mkv"
+    legacy_link.symlink_to(media)
+
+    manager = SymlinkManager(str(mount), str(staging))
+    repaired = manager.repair_single_file_layout(str(exported), "/episode.mkv")
+
+    assert repaired is True
+    assert not legacy_link.exists()
+    new_link = exported / "torrents" / "episode.mkv"
+    assert new_link.is_symlink()
+    assert new_link.resolve() == media.resolve()
+
+
 def test_symlink_manager_rejects_non_mount_sources(tmp_path: Path) -> None:
     mount = tmp_path / "mnt"
     staging = tmp_path / "links"

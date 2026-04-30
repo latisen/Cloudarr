@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -7,6 +10,7 @@ from app.api.routes.qbittorrent import router
 from app.core.config import Settings, get_settings
 from app.models.enums import JobState
 from app.services.job_service import JobService
+from app.services.symlink_manager import SymlinkManager
 
 
 def _app(db_session):
@@ -17,6 +21,25 @@ def _app(db_session):
 
     app.dependency_overrides[deps.db_session] = lambda: db_session
     app.dependency_overrides[get_settings] = lambda: Settings(qbit_require_auth=False)
+    return app
+
+
+def _app_with_runtime(db_session, tmp_path: Path):
+    settings = Settings(
+        qbit_require_auth=False,
+        webdav_mount_path=str(tmp_path / "mnt"),
+        symlink_staging_root=str(tmp_path / "links"),
+    )
+    app = FastAPI()
+    app.include_router(router)
+
+    from app.api import deps
+
+    app.dependency_overrides[deps.db_session] = lambda: db_session
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.state.runtime = SimpleNamespace(
+        symlink_manager=SymlinkManager(settings.webdav_mount_path, settings.symlink_staging_root)
+    )
     return app
 
 
@@ -116,6 +139,43 @@ def test_torrent_properties_prefers_exported_path(db_session) -> None:
     resp = client.get(f"/api/v2/torrents/properties?hash={job.info_hash}")
     assert resp.status_code == 200
     assert resp.json()["save_path"] == "/data/downloads/sonarr/prop1"
+
+
+def test_torrents_files_repairs_legacy_flat_export_layout(db_session, tmp_path: Path) -> None:
+    app = _app_with_runtime(db_session, tmp_path)
+    client = TestClient(app)
+    service = JobService(db_session)
+
+    media = tmp_path / "mnt" / "episode.mkv"
+    media.parent.mkdir(parents=True, exist_ok=True)
+    media.write_text("dummy")
+
+    exported = tmp_path / "links" / "sonarr" / "repair1"
+    exported.mkdir(parents=True, exist_ok=True)
+    (exported / "episode.mkv").symlink_to(media)
+
+    job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:repair1",
+        name="Andor.S02E08",
+        category="sonarr",
+        save_path=str(exported),
+    )
+    job.exported_path = str(exported)
+    job.torbox_remote_path = "/episode.mkv"
+    db_session.add(job)
+    db_session.commit()
+    service.transition(job, JobState.VALIDATING, message="test")
+    service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="test")
+    service.transition(job, JobState.WAITING_FOR_TORBOX, message="test")
+    service.transition(job, JobState.TORBOX_READY, message="test")
+    service.transition(job, JobState.REFRESHING_WEBDAV, message="test")
+    service.transition(job, JobState.WEBDAV_VISIBLE, message="test")
+    service.transition(job, JobState.CREATING_SYMLINKS, message="test")
+    service.transition(job, JobState.READY_FOR_IMPORT, message="test")
+
+    files = client.get(f"/api/v2/torrents/files?hash={job.info_hash}")
+    assert files.status_code == 200
+    assert (exported / "torrents" / "episode.mkv").is_symlink()
 
 
 def test_torrents_delete_transitions_ready_job(db_session) -> None:
