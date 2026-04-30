@@ -34,7 +34,11 @@ class SymlinkManager:
         target_root.mkdir(parents=True, exist_ok=True)
 
         if source_root.is_file():
-            link = target_root / source_root.name
+            # Preserve mount-relative path for single-file exports so API-reported
+            # file names like "torrents/<name>.mkv" resolve inside the job folder.
+            link_rel = source_root.relative_to(self.mount_path)
+            link = target_root / link_rel
+            link.parent.mkdir(parents=True, exist_ok=True)
             if link.exists() or link.is_symlink():
                 link.unlink()
             os.symlink(source_root, link)

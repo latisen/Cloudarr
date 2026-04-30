@@ -299,6 +299,9 @@ spec:
               mountPath: /config
             - name: media-data
               mountPath: /data
+            - name: media-debrid
+              mountPath: /mnt/debrid
+              mountPropagation: Bidirectional
             - name: fuse-device
               mountPath: /dev/fuse
           resources:
@@ -316,6 +319,10 @@ spec:
         - name: media-data
           hostPath:
             path: /srv/media/data
+            type: DirectoryOrCreate
+        - name: media-debrid
+          hostPath:
+            path: /srv/media/mnt/debrid
             type: DirectoryOrCreate
         - name: fuse-device
           hostPath:

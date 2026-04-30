@@ -62,7 +62,8 @@ def _require_auth(request: Request, settings: Settings) -> Response | None:
 def _map_state(job_state: JobState) -> str:
     # qBittorrent state terms expected by Sonarr.
     if job_state == JobState.READY_FOR_IMPORT:
-        return "uploading"
+        # Completed-and-seeding state; Sonarr treats this as importable/completed.
+        return "pausedUP"
     if job_state in {JobState.FAILED, JobState.NEEDS_ATTENTION}:
         return "error"
     if job_state in {JobState.RECEIVED_FROM_SONARR, JobState.VALIDATING, JobState.SUBMITTED_TO_TORBOX}:
@@ -371,6 +372,7 @@ async def torrent_properties(
 async def torrents_delete(
     request: Request,
     hashes: str = Form(default=""),
+    hash_single: str = Form(default="", alias="hash"),
     deleteFiles: str = Form(default="false"),  # noqa: N803
     db: Session = Depends(db_session),
     settings: Settings = Depends(get_settings),
@@ -380,8 +382,21 @@ async def torrents_delete(
     if auth_error:
         return auth_error
 
+    form = await request.form()
+    hash_values: list[str] = []
+    if hashes.strip():
+        hash_values.extend(h.strip() for h in hashes.split("|") if h.strip())
+    if hash_single.strip():
+        hash_values.append(hash_single.strip())
+    hash_values.extend(value.strip() for value in form.getlist("hashes[]") if str(value).strip())
+    hash_values.extend(value.strip() for value in form.getlist("hashes[0]") if str(value).strip())
+
+    # Deduplicate while preserving order.
+    seen: set[str] = set()
+    ordered_hashes = [h for h in hash_values if not (h in seen or seen.add(h))]
+
     service = JobService(db)
-    for hash_str in (h.strip() for h in hashes.split("|") if h.strip()):
+    for hash_str in ordered_hashes:
         job = service.get_by_hash(hash_str)
         if job and JobState(job.state) == JobState.READY_FOR_IMPORT:
             service.transition(job, JobState.IMPORTED_OPTIONAL_DETECTED, message="Imported by Sonarr")

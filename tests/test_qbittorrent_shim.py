@@ -107,6 +107,88 @@ def test_torrents_delete_transitions_ready_job(db_session) -> None:
     assert updated.state == JobState.IMPORTED_OPTIONAL_DETECTED.value
 
 
+def test_torrents_info_reports_ready_jobs_as_paused_up(db_session) -> None:
+    app = _app(db_session)
+    client = TestClient(app)
+    service = JobService(db_session)
+
+    job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:ready1",
+        name="Andor.S02E04",
+        category="sonarr",
+        save_path="/links",
+    )
+    service.transition(job, JobState.VALIDATING, message="test")
+    service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="test")
+    service.transition(job, JobState.WAITING_FOR_TORBOX, message="test")
+    service.transition(job, JobState.TORBOX_READY, message="test")
+    service.transition(job, JobState.REFRESHING_WEBDAV, message="test")
+    service.transition(job, JobState.WEBDAV_VISIBLE, message="test")
+    service.transition(job, JobState.CREATING_SYMLINKS, message="test")
+    service.transition(job, JobState.READY_FOR_IMPORT, message="test")
+
+    info = client.get("/api/v2/torrents/info")
+    assert info.status_code == 200
+    payload = info.json()
+    assert payload[0]["state"] == "pausedUP"
+
+
+def test_torrents_delete_accepts_single_hash_field(db_session) -> None:
+    app = _app(db_session)
+    client = TestClient(app)
+    service = JobService(db_session)
+
+    job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:abc456",
+        name="Andor.S02E05",
+        category="sonarr",
+        save_path="/links",
+    )
+    service.transition(job, JobState.VALIDATING, message="test")
+    service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="test")
+    service.transition(job, JobState.WAITING_FOR_TORBOX, message="test")
+    service.transition(job, JobState.TORBOX_READY, message="test")
+    service.transition(job, JobState.REFRESHING_WEBDAV, message="test")
+    service.transition(job, JobState.WEBDAV_VISIBLE, message="test")
+    service.transition(job, JobState.CREATING_SYMLINKS, message="test")
+    service.transition(job, JobState.READY_FOR_IMPORT, message="test")
+
+    resp = client.post("/api/v2/torrents/delete", data={"hash": job.info_hash, "deleteFiles": "false"})
+    assert resp.status_code == 200
+
+    updated = service.get_by_hash(job.info_hash)
+    assert updated is not None
+    assert updated.state == JobState.IMPORTED_OPTIONAL_DETECTED.value
+
+
+def test_torrents_delete_accepts_hashes_array_field(db_session) -> None:
+    app = _app(db_session)
+    client = TestClient(app)
+    service = JobService(db_session)
+
+    job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:abc789",
+        name="Andor.S02E06",
+        category="sonarr",
+        save_path="/links",
+    )
+    service.transition(job, JobState.VALIDATING, message="test")
+    service.transition(job, JobState.SUBMITTED_TO_TORBOX, message="test")
+    service.transition(job, JobState.WAITING_FOR_TORBOX, message="test")
+    service.transition(job, JobState.TORBOX_READY, message="test")
+    service.transition(job, JobState.REFRESHING_WEBDAV, message="test")
+    service.transition(job, JobState.WEBDAV_VISIBLE, message="test")
+    service.transition(job, JobState.CREATING_SYMLINKS, message="test")
+    service.transition(job, JobState.READY_FOR_IMPORT, message="test")
+
+    resp = client.post("/api/v2/torrents/delete", data={"hashes[]": job.info_hash, "deleteFiles": "false"})
+    assert resp.status_code == 200
+
+    updated = service.get_by_hash(job.info_hash)
+    assert updated is not None
+    assert updated.state == JobState.IMPORTED_OPTIONAL_DETECTED.value
+
+
 def test_add_requeues_previously_terminal_job(db_session) -> None:
     app = _app(db_session)
     client = TestClient(app)
