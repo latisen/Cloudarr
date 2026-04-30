@@ -93,6 +93,7 @@ def test_torrents_files_returns_file_info(db_session) -> None:
     payload = files.json()
     assert len(payload) == 1
     assert payload[0]["name"]
+    assert payload[0]["name"].startswith("torrents/")
     assert payload[0]["index"] == 0
 
 

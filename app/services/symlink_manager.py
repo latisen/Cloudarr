@@ -37,6 +37,10 @@ class SymlinkManager:
             # Preserve mount-relative path for single-file exports so API-reported
             # file names like "torrents/<name>.mkv" resolve inside the job folder.
             link_rel = source_root.relative_to(self.mount_path)
+            if link_rel.parent == Path("."):
+                # Sonarr commonly tracks single-file releases under a torrents/
+                # child folder inside the job path.
+                link_rel = Path("torrents") / link_rel.name
             link = target_root / link_rel
             link.parent.mkdir(parents=True, exist_ok=True)
             if link.exists() or link.is_symlink():

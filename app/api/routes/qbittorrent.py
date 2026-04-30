@@ -263,6 +263,8 @@ async def torrents_files(
     if not remote_name:
         fallback_name = (job.torrent_name or job.sonarr_title or job.info_hash).strip()
         remote_name = f"{fallback_name}.mkv"
+    if "/" not in remote_name:
+        remote_name = f"torrents/{remote_name}"
 
     progress = 1.0 if JobState(job.state) == JobState.READY_FOR_IMPORT else max(0.0, min(1.0, job.progress))
     return JSONResponse(
