@@ -37,6 +37,23 @@ def test_add_and_list_torrent(db_session) -> None:
     assert payload[0]["category"] == "sonarr"
 
 
+def test_add_with_dot_savepath_uses_default_output_path(db_session) -> None:
+    app = _app(db_session)
+    client = TestClient(app)
+
+    add = client.post(
+        "/api/v2/torrents/add",
+        data={"urls": "magnet:?xt=urn:btih:123dot", "category": "sonarr", "savepath": "."},
+    )
+    assert add.status_code == 200
+
+    info = client.get("/api/v2/torrents/info")
+    assert info.status_code == 200
+    payload = info.json()
+    assert len(payload) == 1
+    assert payload[0]["save_path"] == "/srv/torbox-arr/links/sonarr"
+
+
 def test_add_and_list_torrent_uses_magnet_display_name(db_session) -> None:
     app = _app(db_session)
     client = TestClient(app)
@@ -77,6 +94,27 @@ def test_torrents_files_returns_file_info(db_session) -> None:
     assert len(payload) == 1
     assert payload[0]["name"]
     assert payload[0]["index"] == 0
+
+
+def test_torrent_properties_prefers_exported_path(db_session) -> None:
+    app = _app(db_session)
+    client = TestClient(app)
+    service = JobService(db_session)
+
+    job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:prop1",
+        name="Andor.S02E07",
+        category="sonarr",
+        save_path=".",
+    )
+    job.exported_path = "/data/downloads/sonarr/prop1"
+    job.save_path = "."
+    db_session.add(job)
+    db_session.commit()
+
+    resp = client.get(f"/api/v2/torrents/properties?hash={job.info_hash}")
+    assert resp.status_code == 200
+    assert resp.json()["save_path"] == "/data/downloads/sonarr/prop1"
 
 
 def test_torrents_delete_transitions_ready_job(db_session) -> None:

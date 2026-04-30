@@ -75,6 +75,13 @@ def _to_info_items(jobs: Iterable[Job]) -> list[QBittorrentInfoItem]:
     items: list[QBittorrentInfoItem] = []
     for job in jobs:
         state = JobState(job.state)
+        # Some Sonarr versions submit "." as savepath. Keep output paths usable
+        # by preferring exported_path once available and avoiding "." in responses.
+        save_path = (job.save_path or "").strip()
+        if job.exported_path:
+            save_path = job.exported_path
+        if save_path in {"", "."}:
+            save_path = f"/{job.category}/{job.info_hash}"
         items.append(
             QBittorrentInfoItem(
                 hash=job.info_hash,
@@ -82,7 +89,7 @@ def _to_info_items(jobs: Iterable[Job]) -> list[QBittorrentInfoItem]:
                 progress=job.progress,
                 state=_map_state(state),
                 category=job.category,
-                save_path=job.save_path,
+                save_path=save_path,
                 completed=int(job.progress * 1000),
                 size=1000,
                 amount_left=max(0, int((1 - job.progress) * 1000)),
@@ -181,7 +188,10 @@ async def torrents_add(
 
     service = JobService(db)
     selected_category = category or settings.default_category
-    selected_save_path = savepath or f"{settings.symlink_staging_root}/{selected_category}"
+    requested_save_path = savepath.strip()
+    selected_save_path = (
+        requested_save_path if requested_save_path and requested_save_path != "." else f"{settings.symlink_staging_root}/{selected_category}"
+    )
 
     magnet = urls.strip() or None
     if magnet:
@@ -359,7 +369,7 @@ async def torrent_properties(
 
     return JSONResponse(
         {
-            "save_path": job.save_path,
+            "save_path": (job.exported_path or job.save_path or "").strip() or f"/{job.category}/{job.info_hash}",
             "comment": "Cloudarr/TorBox",
             "total_size": 1000,
             "progress": job.progress,
