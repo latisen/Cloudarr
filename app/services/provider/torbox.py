@@ -78,9 +78,12 @@ class TorBoxProvider(DebridProvider):
                 "allow_zip": "true",
             },
         )
+        provider_job_id = str(data.get("torrent_id") or data.get("id") or data.get("auth_id") or "")
+        if not provider_job_id:
+            raise RuntimeError(f"TorBox create torrent returned missing id; payload_keys={sorted(data.keys())}")
 
         return ProviderSubmission(
-            provider_job_id=str(data.get("torrent_id") or data.get("id") or data.get("auth_id") or ""),
+            provider_job_id=provider_job_id,
             display_name=str(data.get("hash") or "torbox-job"),
         )
 
@@ -95,9 +98,12 @@ class TorBoxProvider(DebridProvider):
             },
             files=files,
         )
+        provider_job_id = str(payload.get("torrent_id") or payload.get("id") or payload.get("auth_id") or "")
+        if not provider_job_id:
+            raise RuntimeError(f"TorBox upload returned missing id; payload_keys={sorted(payload.keys())}")
 
         return ProviderSubmission(
-            provider_job_id=str(payload.get("torrent_id") or payload.get("id") or payload.get("auth_id") or ""),
+            provider_job_id=provider_job_id,
             display_name=str(payload.get("hash") or filename),
         )
 

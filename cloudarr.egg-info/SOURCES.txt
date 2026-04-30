@@ -32,6 +32,7 @@ app/services/symlink_manager.py
 app/services/worker.py
 app/services/provider/__init__.py
 app/services/provider/base.py
+app/services/provider/realdebrid.py
 app/services/provider/torbox.py
 cloudarr.egg-info/PKG-INFO
 cloudarr.egg-info/SOURCES.txt
@@ -39,9 +40,12 @@ cloudarr.egg-info/dependency_links.txt
 cloudarr.egg-info/entry_points.txt
 cloudarr.egg-info/requires.txt
 cloudarr.egg-info/top_level.txt
+tests/test_magnet_naming.py
 tests/test_mount_refresh.py
 tests/test_no_copy_paths.py
 tests/test_qbittorrent_shim.py
+tests/test_realdebrid_provider.py
 tests/test_restart_recovery.py
 tests/test_state_machine.py
 tests/test_symlink_only.py
+tests/test_worker_wait_timeout.py

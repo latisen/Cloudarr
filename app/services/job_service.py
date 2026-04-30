@@ -89,6 +89,28 @@ class JobService:
         info_hash = derive_info_hash(magnet_uri, torrent_file_path or name)
         existing = self.db.scalar(select(Job).where(Job.info_hash == info_hash))
         if existing:
+            existing_state = JobState(existing.state)
+            if existing_state in TERMINAL_STATES:
+                existing.magnet_uri = magnet_uri
+                existing.torrent_file_path = torrent_file_path
+                existing.sonarr_title = normalized_name
+                existing.torrent_name = normalized_name
+                existing.category = category
+                existing.save_path = save_path
+                existing.state = JobState.RECEIVED_FROM_SONARR.value
+                existing.progress = 0.0
+                existing.torbox_job_id = None
+                existing.torbox_remote_path = None
+                existing.exported_path = None
+                existing.error_message = None
+                existing.retries = 0
+                existing.completed_at = None
+                self.db.add(existing)
+                self._commit_with_retry(context="requeue_existing_received_job")
+                self.db.refresh(existing)
+                self.add_event(existing.id, JobState.RECEIVED_FROM_SONARR, "requeued from sonarr")
+                return existing
+
             better_name = normalized_name
             changed = False
             if better_name and (_looks_like_magnet_name(existing.torrent_name) or not existing.torrent_name.strip()):

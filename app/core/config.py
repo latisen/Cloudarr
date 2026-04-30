@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     torrent_cache_dir: str = "/var/lib/cloudarr/torrents"
 
     refresh_max_attempts: int = Field(default=10, ge=1, le=100)
-    refresh_retry_seconds: int = Field(default=10, ge=1, le=300)
+    refresh_retry_seconds: int = Field(default=10, ge=0, le=300)
     webdav_refresh_command: str = "rclone rc vfs/refresh recursive=true"
     webdav_remount_command: str = "systemctl restart torbox-rclone-mount.service"
     webdav_command_timeout_seconds: int = Field(default=20, ge=1, le=600)

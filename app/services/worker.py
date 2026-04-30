@@ -42,6 +42,21 @@ class JobWorker:
         self._symlink_manager = symlink_manager
         self._running = False
 
+    def reconfigure(
+        self,
+        *,
+        settings: Settings,
+        provider: DebridProvider,
+        mount_manager: WebDavMountManager,
+        symlink_manager: SymlinkManager,
+    ) -> None:
+        """Apply updated runtime dependencies without restarting the process."""
+
+        self._settings = settings
+        self._provider = provider
+        self._mount_manager = mount_manager
+        self._symlink_manager = symlink_manager
+
     @property
     def is_running(self) -> bool:
         return self._running

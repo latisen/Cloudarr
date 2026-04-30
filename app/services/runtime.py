@@ -29,6 +29,20 @@ class Runtime:
             symlink_manager=self.symlink_manager,
         )
 
+    def reload_from_db(self) -> None:
+        """Reload mutable settings and rebuild dependent runtime components."""
+
+        self._hydrate_settings_from_db()
+        self.provider = self._build_provider()
+        self.mount_manager = WebDavMountManager(self.settings)
+        self.symlink_manager = SymlinkManager(self.settings.webdav_mount_path, self.settings.symlink_staging_root)
+        self.worker.reconfigure(
+            settings=self.settings,
+            provider=self.provider,
+            mount_manager=self.mount_manager,
+            symlink_manager=self.symlink_manager,
+        )
+
     def _build_provider(self):
         provider_name = self.settings.provider_name.strip().lower()
         if provider_name == "realdebrid":

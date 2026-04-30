@@ -12,6 +12,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse, PlainTextResponse
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session
@@ -24,12 +25,32 @@ from app.services.job_service import JobService, derive_display_name
 router = APIRouter(prefix="/api/v2", tags=["qbittorrent-shim"])
 
 
+def _sid_serializer(settings: Settings) -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(secret_key=settings.secret_key, salt="cloudarr-qbit-sid")
+
+
+def _issue_sid(settings: Settings) -> str:
+    serializer = _sid_serializer(settings)
+    return str(serializer.dumps({"kind": "qbit-auth"}))
+
+
+def _verify_sid(token: str, settings: Settings) -> bool:
+    serializer = _sid_serializer(settings)
+    try:
+        payload = serializer.loads(token, max_age=60 * 60 * 24 * 30)
+    except (BadSignature, SignatureExpired):
+        return False
+    return isinstance(payload, dict) and payload.get("kind") == "qbit-auth"
+
+
 def _is_authenticated(request: Request, settings: Settings) -> bool:
     # qBittorrent compatibility shim: cookie-based auth behavior.
     if not settings.qbit_require_auth:
         return True
     sid = request.cookies.get("SID")
-    return sid == "cloudarr-auth"
+    if not sid:
+        return False
+    return _verify_sid(sid, settings)
 
 
 def _require_auth(request: Request, settings: Settings) -> Response | None:
@@ -82,7 +103,13 @@ async def auth_login(
 
     if username == settings.qbit_username and password == settings.qbit_password:
         response = PlainTextResponse("Ok.")
-        response.set_cookie(key="SID", value="cloudarr-auth", httponly=True, samesite="lax")
+        response.set_cookie(
+            key="SID",
+            value=_issue_sid(settings),
+            httponly=True,
+            samesite="lax",
+            secure=settings.env == "production",
+        )
         return response
     return PlainTextResponse("Fails.", status_code=status.HTTP_403_FORBIDDEN)
 

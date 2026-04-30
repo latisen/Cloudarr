@@ -105,3 +105,58 @@ def test_torrents_delete_transitions_ready_job(db_session) -> None:
     updated = service.get_by_hash(job.info_hash)
     assert updated is not None
     assert updated.state == JobState.IMPORTED_OPTIONAL_DETECTED.value
+
+
+def test_add_requeues_previously_terminal_job(db_session) -> None:
+    app = _app(db_session)
+    client = TestClient(app)
+    service = JobService(db_session)
+
+    magnet = "magnet:?xt=urn:btih:111"
+    first = service.create_received_job(
+        magnet_uri=magnet,
+        name="Andor.S01E01",
+        category="sonarr",
+        save_path="/links",
+    )
+    service.transition(first, JobState.VALIDATING, message="test")
+    service.transition(first, JobState.FAILED, message="test", error="boom")
+
+    add = client.post(
+        "/api/v2/torrents/add",
+        data={"urls": magnet, "category": "sonarr", "savepath": "/links"},
+    )
+    assert add.status_code == 200
+
+    updated = service.get_by_hash(first.info_hash)
+    assert updated is not None
+    assert updated.id == first.id
+    assert updated.state == JobState.RECEIVED_FROM_SONARR.value
+    assert updated.progress == 0.0
+    assert updated.error_message is None
+
+
+def test_auth_uses_signed_sid_cookie(db_session) -> None:
+    app = FastAPI()
+    app.include_router(router)
+    from app.api import deps
+
+    app.dependency_overrides[deps.db_session] = lambda: db_session
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        qbit_require_auth=True,
+        qbit_username="sonarr",
+        qbit_password="secret",
+        secret_key="test-secret",
+    )
+    client = TestClient(app)
+
+    bad = client.get("/api/v2/torrents/info", cookies={"SID": "cloudarr-auth"})
+    assert bad.status_code == 403
+
+    login = client.post("/api/v2/auth/login", data={"username": "sonarr", "password": "secret"})
+    assert login.status_code == 200
+    sid = login.cookies.get("SID")
+    assert sid
+
+    ok = client.get("/api/v2/torrents/info", cookies={"SID": sid})
+    assert ok.status_code == 200
