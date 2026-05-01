@@ -39,13 +39,11 @@
         <td>{{ "%.0f"|format(job.progress*100) }}%</td>
         <td>{{ job.exported_path or job.save_path }}</td>
         <td>
-          {% if job.state in ['FAILED', 'NEEDS_ATTENTION', 'COMPLETED'] %}
-            <form method="post" action="/jobs/retry" style="display: inline;">
-              <input type="hidden" name="job_id" value="{{ job.id }}" />
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-              <button type="submit" style="padding: 4px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Retry</button>
-            </form>
-          {% endif %}
+          <form method="post" action="/jobs/retry" style="display: inline;">
+            <input type="hidden" name="job_id" value="{{ job.id }}" />
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <button type="submit" style="padding: 4px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Retry</button>
+          </form>
         </td>
       </tr>
     {% endfor %}

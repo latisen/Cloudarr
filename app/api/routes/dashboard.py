@@ -100,6 +100,7 @@ async def logout_action(request: Request, csrf_token: str = Form(...)) -> Redire
 
 
 @router.get("/", response_class=HTMLResponse)
+@router.get("/jobs", response_class=HTMLResponse)
 async def jobs_page(request: Request, db: Session = Depends(db_session)) -> HTMLResponse:
     _require_dashboard_auth(request)
     csrf = DashboardAuth.get_csrf_token(request)
@@ -301,7 +302,7 @@ async def retry_job(
     db: Session = Depends(db_session),
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
-    """Reset a failed job to QUEUED state for retry."""
+    """Reset any job to QUEUED state for retry."""
     _require_dashboard_auth(request)
     DashboardAuth.validate_csrf(request, csrf_token)
 
@@ -315,18 +316,19 @@ async def retry_job(
             )
         from app.models.job import JobState
 
-        if job.state in [JobState.COMPLETED.value, JobState.FAILED.value, JobState.NEEDS_ATTENTION.value]:
-            job.state = JobState.QUEUED.value
-            job.error_message = None
-            job.retries = 0
-            db.add(job)
-            db.commit()
-            return RedirectResponse(
-                url="/jobs?retry_result=ok",
-                status_code=303,
-            )
+        # Force a clean requeue so worker restarts the flow from validation.
+        job.state = JobState.QUEUED.value
+        job.progress = 0.0
+        job.error_message = None
+        job.retries = 0
+        job.torbox_job_id = None
+        job.torbox_remote_path = None
+        job.exported_path = None
+        job.completed_at = None
+        db.add(job)
+        db.commit()
         return RedirectResponse(
-            url="/jobs?error=Can+only+retry+failed+or+completed+jobs",
+            url="/jobs?retry_result=ok",
             status_code=303,
         )
     except Exception as exc:  # noqa: BLE001
