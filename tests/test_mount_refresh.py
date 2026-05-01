@@ -11,7 +11,7 @@ from app.services.mount_manager import WebDavMountManager
 
 
 @pytest.mark.asyncio
-async def test_refresh_visibility_retries(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+async def test_refresh_visibility_single_attempt_per_tick(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     settings = Settings(
         webdav_mount_path=str(tmp_path),
         refresh_max_attempts=3,
@@ -36,8 +36,13 @@ async def test_refresh_visibility_retries(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
 
     ok, _ = await manager.ensure_remote_path_visible("ready")
+    assert not ok
+    assert calls["count"] == 1
+
+    ok, msg = await manager.ensure_remote_path_visible("ready")
     assert ok
-    assert calls["count"] >= 1
+    assert msg == "visible_after_attempt_1"
+    assert calls["count"] == 2
 
 
 @pytest.mark.asyncio

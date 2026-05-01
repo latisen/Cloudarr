@@ -61,6 +61,22 @@ class JobWorker:
     def is_running(self) -> bool:
         return self._running
 
+    def _job_priority(self, job: Job) -> tuple[int, dt.datetime]:
+        state = JobState(job.state)
+        priority = {
+            JobState.RECEIVED_FROM_SONARR: 0,
+            JobState.VALIDATING: 1,
+            JobState.SUBMITTED_TO_TORBOX: 2,
+            JobState.WAITING_FOR_TORBOX: 3,
+            JobState.TORBOX_READY: 4,
+            JobState.WEBDAV_VISIBLE: 5,
+            JobState.CREATING_SYMLINKS: 6,
+            JobState.READY_FOR_IMPORT: 7,
+            JobState.NEEDS_ATTENTION: 8,
+            JobState.REFRESHING_WEBDAV: 9,
+        }.get(state, 99)
+        return priority, job.created_at
+
     async def run_forever(self) -> None:
         self._running = True
         logger.info("worker_started")
@@ -76,7 +92,7 @@ class JobWorker:
 
     async def _tick(self, db: Session) -> None:
         service = JobService(db)
-        active = service.list_active_jobs()
+        active = sorted(service.list_active_jobs(), key=self._job_priority)
         for job in active:
             try:
                 await self._process_job(db, service, job)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from pathlib import Path
 
@@ -58,6 +59,12 @@ class _ReadyProvider:
 class _DummyMountManager:
     async def ensure_remote_path_visible(self, remote_path: str) -> tuple[bool, str]:
         return False, "not-used"
+
+
+class _SlowMountManager:
+    async def ensure_remote_path_visible(self, remote_path: str) -> tuple[bool, str]:
+        await asyncio.sleep(0.01)
+        return False, "slow-not-visible"
 
 
 class _DummySymlinkManager:
@@ -272,3 +279,44 @@ async def test_ready_for_import_auto_completes_after_grace_period(db_session: Se
     await worker._process_job(db_session, service, job)
     db_session.refresh(job)
     assert job.state == JobState.IMPORTED_OPTIONAL_DETECTED.value
+
+
+@pytest.mark.asyncio
+async def test_tick_prioritizes_new_jobs_over_refreshing_webdav(db_session: Session) -> None:
+    service = JobService(db_session)
+
+    blocked_job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:blocked",
+        name="blocked",
+        category="sonarr",
+        save_path="/links",
+    )
+    service.transition(blocked_job, JobState.VALIDATING, message="ok")
+    service.transition(blocked_job, JobState.SUBMITTED_TO_TORBOX, message="ok")
+    service.transition(blocked_job, JobState.WAITING_FOR_TORBOX, message="ok")
+    service.transition(blocked_job, JobState.TORBOX_READY, message="ok")
+    blocked_job.torbox_remote_path = "/missing/file.mkv"
+    db_session.add(blocked_job)
+    db_session.commit()
+    db_session.refresh(blocked_job)
+    service.transition(blocked_job, JobState.REFRESHING_WEBDAV, message="refreshing")
+
+    new_job = service.create_received_job(
+        magnet_uri="magnet:?xt=urn:btih:newjob",
+        name="new",
+        category="sonarr",
+        save_path="/links",
+    )
+
+    worker = JobWorker(
+        db_factory=lambda: db_session,
+        settings=Settings(),
+        provider=_DummyProvider(),
+        mount_manager=_SlowMountManager(),
+        symlink_manager=_DummySymlinkManager(),
+    )
+
+    await worker._tick(db_session)
+
+    db_session.refresh(new_job)
+    assert new_job.state == JobState.VALIDATING.value

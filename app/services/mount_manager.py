@@ -140,7 +140,12 @@ class WebDavMountManager:
         return False, remount_output
 
     async def ensure_remote_path_visible(self, remote_path: str) -> tuple[bool, str]:
-        """Force refresh and validate visibility of remote path in mounted filesystem."""
+        """Force one refresh attempt and validate visibility of remote path.
+
+        The worker revisits REFRESHING_WEBDAV jobs on later ticks, so this method
+        should stay bounded and cheap enough that one stuck WebDAV refresh does not
+        starve newer jobs in the same queue.
+        """
 
         rel = remote_path.lstrip("/")
         candidates: list[Path] = [self.mount_path / rel]
@@ -157,29 +162,42 @@ class WebDavMountManager:
         if torrents_candidate not in candidates:
             candidates.append(torrents_candidate)
 
-        for attempt in range(1, self.settings.refresh_max_attempts + 1):
-            logger.info(
-                "webdav_visibility_attempt",
-                extra={
-                    "state": "REFRESHING_WEBDAV",
-                    "attempt": attempt,
-                    "max_attempts": self.settings.refresh_max_attempts,
-                    "remote_path": remote_path,
-                },
-            )
-            for candidate in candidates:
-                if candidate.exists():
-                    rel_found = candidate.relative_to(self.mount_path).as_posix()
-                    if rel_found != rel:
-                        return True, f"resolved_relative_path=/{rel_found}"
-                    return True, f"visible_after_attempt_{attempt}"
+        attempt = 1
+        logger.info(
+            "webdav_visibility_attempt",
+            extra={
+                "state": "REFRESHING_WEBDAV",
+                "attempt": attempt,
+                "max_attempts": self.settings.refresh_max_attempts,
+                "remote_path": remote_path,
+            },
+        )
+        for candidate in candidates:
+            if candidate.exists():
+                rel_found = candidate.relative_to(self.mount_path).as_posix()
+                if rel_found != rel:
+                    return True, f"resolved_relative_path=/{rel_found}"
+                return True, f"visible_after_attempt_{attempt}"
 
-            resolved = self._resolve_fallback_limited(rel)
-            if resolved is not None:
-                rel_resolved = resolved.relative_to(self.mount_path).as_posix()
-                return True, f"resolved_relative_path=/{rel_resolved}"
+        resolved = self._resolve_fallback_limited(rel)
+        if resolved is not None:
+            rel_resolved = resolved.relative_to(self.mount_path).as_posix()
+            return True, f"resolved_relative_path=/{rel_resolved}"
 
-            await self.refresh_mount_view()
-            await asyncio.sleep(self.settings.refresh_retry_seconds)
+        await self.refresh_mount_view()
+        await asyncio.sleep(self.settings.refresh_retry_seconds)
+
+        for candidate in candidates:
+            if candidate.exists():
+                rel_found = candidate.relative_to(self.mount_path).as_posix()
+                if rel_found != rel:
+                    return True, f"resolved_relative_path=/{rel_found}"
+                return True, f"visible_after_attempt_{attempt}"
+
+        resolved = self._resolve_fallback_limited(rel)
+        if resolved is not None:
+            rel_resolved = resolved.relative_to(self.mount_path).as_posix()
+            return True, f"resolved_relative_path=/{rel_resolved}"
+
         checked = ", ".join(str(candidate) for candidate in candidates)
         return False, f"remote path not visible after retries: {checked}"
