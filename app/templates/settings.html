@@ -1,73 +1,220 @@
 {% extends "base.html" %}
 {% block content %}
+<section class="hero panel">
+  <h2>System Settings</h2>
+  <p class="muted">Manage provider credentials, mount behavior, and service controls from one place.</p>
+  {% if settings.saved %}
+  <div class="alert success">Settings saved and runtime reloaded.</div>
+  {% endif %}
+  {% if settings.service_result == "ok" %}
+  <div class="alert success">Service action completed for {{ settings.service_target }}.</div>
+  {% elif settings.service_result == "error" %}
+  <div class="alert error">Service action failed for {{ settings.service_target }}: {{ settings.service_detail }}</div>
+  {% endif %}
+</section>
+
+<section class="panel stack-gap">
+  <h3>Service Controls</h3>
+  <div class="service-grid">
+    <article class="service-card">
+      <strong>Sonarr</strong>
+      <p>Status: <span class="status-pill">{{ settings.service_statuses.sonarr }}</span></p>
+      <form method="post" action="/settings/service-action">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="hidden" name="target" value="sonarr" />
+        <button type="submit">Restart Sonarr</button>
+      </form>
+    </article>
+    <article class="service-card">
+      <strong>Radarr</strong>
+      <p>Status: <span class="status-pill">{{ settings.service_statuses.radarr }}</span></p>
+      <form method="post" action="/settings/service-action">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="hidden" name="target" value="radarr" />
+        <button type="submit">Restart Radarr</button>
+      </form>
+    </article>
+    <article class="service-card">
+      <strong>Cloudarr API</strong>
+      <p>Status: <span class="status-pill">{{ settings.service_statuses.cloudarr_api }}</span></p>
+      <form method="post" action="/settings/service-action">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="hidden" name="target" value="cloudarr_api" />
+        <button type="submit">Restart API</button>
+      </form>
+    </article>
+    <article class="service-card">
+      <strong>Cloudarr Worker</strong>
+      <p>Status: <span class="status-pill">{{ settings.service_statuses.cloudarr_worker }}</span></p>
+      <form method="post" action="/settings/service-action">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="hidden" name="target" value="cloudarr_worker" />
+        <button type="submit">Restart Worker</button>
+      </form>
+    </article>
+    <article class="service-card">
+      <strong>WebDAV Mount</strong>
+      <p>Status: <span class="status-pill">{{ settings.service_statuses.webdav_mount }}</span></p>
+      <form method="post" action="/settings/service-action">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="hidden" name="target" value="webdav_mount" />
+        <button type="submit">Restart Mount</button>
+      </form>
+    </article>
+  </div>
+</section>
+
 <section class="panel">
-  <h2>Settings</h2>
-  <form method="post" action="/settings" class="form-grid">
+  <form method="post" action="/settings" class="settings-stack">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
 
-    <label>Provider Name
-      <input name="provider_name" value="{{ settings.provider_name }}" required />
-    </label>
+    <fieldset>
+      <legend>Core</legend>
+      <div class="form-grid two-col">
+        <label>Provider Name
+          <input name="provider_name" value="{{ settings.provider_name }}" required />
+        </label>
+        <label>Default Category
+          <input name="default_category" value="{{ settings.default_category }}" required />
+        </label>
+        <label>Log Level
+          <input name="log_level" value="{{ settings.log_level }}" required />
+        </label>
+        <label>Worker Poll Interval (seconds)
+          <input name="poll_interval_seconds" value="{{ settings.poll_interval_seconds }}" required />
+        </label>
+      </div>
+    </fieldset>
 
-    <label>Real-Debrid API Base
-      <input name="realdebrid_api_base" value="{{ settings.realdebrid_api_base }}" required />
-    </label>
+    <fieldset>
+      <legend>Real-Debrid</legend>
+      <div class="form-grid two-col">
+        <label>API Base
+          <input name="realdebrid_api_base" value="{{ settings.realdebrid_api_base }}" required />
+        </label>
+        <label>API Token
+          <input name="realdebrid_api_token" type="password" placeholder="Leave blank to keep existing" />
+        </label>
+      </div>
+    </fieldset>
 
-    <label>Real-Debrid API Token
-      <input name="realdebrid_api_token" type="password" placeholder="Leave blank to keep existing" />
-    </label>
+    <fieldset>
+      <legend>TorBox</legend>
+      <div class="form-grid two-col">
+        <label>API Base
+          <input name="torbox_api_base" value="{{ settings.torbox_api_base }}" required />
+        </label>
+        <label>API Key
+          <input name="torbox_api_key" type="password" placeholder="Leave blank to keep existing" />
+        </label>
+        <label>Torrents Path
+          <input name="torbox_torrents_path" value="{{ settings.torbox_torrents_path }}" required />
+        </label>
+        <label>MyList Path
+          <input name="torbox_mylist_path" value="{{ settings.torbox_mylist_path }}" required />
+        </label>
+        <label>Health Path
+          <input name="torbox_health_path" value="{{ settings.torbox_health_path }}" required />
+        </label>
+      </div>
+    </fieldset>
 
-    <p>Real-Debrid WebDAV: Use https://dav.real-debrid.com/ as the WebDAV URL, with your Real-Debrid username and password.</p>
+    <fieldset>
+      <legend>WebDAV & Paths</legend>
+      <div class="form-grid two-col">
+        <label>WebDAV URL
+          <input name="webdav_url" value="{{ settings.webdav_url }}" placeholder="https://dav.real-debrid.com/" />
+        </label>
+        <label>WebDAV Username
+          <input name="webdav_username" value="{{ settings.webdav_username }}" />
+        </label>
+        <label>WebDAV Password
+          <input name="webdav_password" type="password" placeholder="Leave blank to keep existing" />
+        </label>
+        <label>WebDAV Mount Path
+          <input name="webdav_mount_path" value="{{ settings.webdav_mount_path }}" required />
+        </label>
+        <label>WebDAV Remote Root
+          <input name="webdav_remote_root" value="{{ settings.webdav_remote_root }}" required />
+        </label>
+        <label>Symlink Staging Root
+          <input name="symlink_staging_root" value="{{ settings.symlink_staging_root }}" required />
+        </label>
+        <label>Refresh Command
+          <input name="webdav_refresh_command" value="{{ settings.webdav_refresh_command }}" required />
+        </label>
+        <label>Remount Command
+          <input name="webdav_remount_command" value="{{ settings.webdav_remount_command }}" required />
+        </label>
+      </div>
+    </fieldset>
 
-    <label>WebDAV URL
-      <input name="webdav_url" value="{{ settings.webdav_url }}" placeholder="https://dav.real-debrid.com/" />
-    </label>
+    <fieldset>
+      <legend>qBittorrent Compatibility</legend>
+      <div class="form-grid two-col">
+        <label>qBittorrent Shim Username
+          <input name="qbit_username" value="{{ settings.qbit_username }}" required />
+        </label>
+        <label>qBittorrent Shim Password
+          <input name="qbit_password" type="password" placeholder="Leave blank to keep existing" />
+        </label>
+        <label>Require qBittorrent Auth (true/false)
+          <input name="qbit_require_auth" value="{{ settings.qbit_require_auth }}" required />
+        </label>
+      </div>
+    </fieldset>
 
-    <label>WebDAV Username
-      <input name="webdav_username" value="{{ settings.webdav_username }}" />
-    </label>
+    <fieldset>
+      <legend>Dashboard Auth</legend>
+      <div class="form-grid two-col">
+        <label>Admin Username
+          <input name="admin_user" value="{{ settings.admin_user }}" required />
+        </label>
+        <label>Admin Password
+          <input name="admin_password" type="password" placeholder="Leave blank to keep existing" />
+        </label>
+      </div>
+    </fieldset>
 
-    <label>WebDAV Password
-      <input name="webdav_password" type="password" placeholder="Leave blank to keep existing" />
-    </label>
+    <fieldset>
+      <legend>Service Units & Commands</legend>
+      <div class="form-grid two-col">
+        <label>Sonarr Service Name
+          <input name="sonarr_service_name" value="{{ settings.sonarr_service_name }}" required />
+        </label>
+        <label>Sonarr Restart Command
+          <input name="sonarr_restart_command" value="{{ settings.service_restart_commands.sonarr }}" required />
+        </label>
+        <label>Radarr Service Name
+          <input name="radarr_service_name" value="{{ settings.radarr_service_name }}" required />
+        </label>
+        <label>Radarr Restart Command
+          <input name="radarr_restart_command" value="{{ settings.service_restart_commands.radarr }}" required />
+        </label>
+        <label>Cloudarr API Service Name
+          <input name="cloudarr_api_service_name" value="{{ settings.cloudarr_api_service_name }}" required />
+        </label>
+        <label>Cloudarr API Restart Command
+          <input name="cloudarr_api_restart_command" value="{{ settings.service_restart_commands.cloudarr_api }}" required />
+        </label>
+        <label>Cloudarr Worker Service Name
+          <input name="cloudarr_worker_service_name" value="{{ settings.cloudarr_worker_service_name }}" required />
+        </label>
+        <label>Cloudarr Worker Restart Command
+          <input name="cloudarr_worker_restart_command" value="{{ settings.service_restart_commands.cloudarr_worker }}" required />
+        </label>
+        <label>WebDAV Mount Service Name
+          <input name="webdav_mount_service_name" value="{{ settings.webdav_mount_service_name }}" required />
+        </label>
+        <label>WebDAV Restart Command
+          <input name="webdav_mount_restart_command" value="{{ settings.service_restart_commands.webdav_mount }}" required />
+        </label>
+      </div>
+    </fieldset>
 
-    <label>WebDAV Mount Path
-      <input name="webdav_mount_path" value="{{ settings.webdav_mount_path }}" required />
-    </label>
-
-    <label>Symlink Staging Root
-      <input name="symlink_staging_root" value="{{ settings.symlink_staging_root }}" required />
-    </label>
-
-    <label>qBittorrent Shim Username
-      <input name="qbit_username" value="{{ settings.qbit_username }}" required />
-    </label>
-
-    <label>qBittorrent Shim Password
-      <input name="qbit_password" type="password" placeholder="Leave blank to keep existing" />
-    </label>
-
-    <label>Require qBittorrent Auth (true/false)
-      <input name="qbit_require_auth" value="{{ settings.qbit_require_auth }}" required />
-    </label>
-
-    <label>Refresh Command
-      <input name="webdav_refresh_command" value="{{ settings.webdav_refresh_command }}" required />
-    </label>
-
-    <label>Remount Command
-      <input name="webdav_remount_command" value="{{ settings.webdav_remount_command }}" required />
-    </label>
-
-    <label>Worker Poll Interval (seconds)
-      <input name="poll_interval_seconds" value="{{ settings.poll_interval_seconds }}" required />
-    </label>
-
-    <label>Logging Level
-      <input name="log_level" value="{{ settings.log_level }}" required />
-    </label>
-
-    <button type="submit">Save</button>
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save All Settings</button>
+    </div>
   </form>
 </section>
 {% endblock %}

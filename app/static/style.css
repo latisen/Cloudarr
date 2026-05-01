@@ -1,69 +1,230 @@
 :root {
-  --bg: #f2f8f5;
+  --bg: #f4f7fb;
   --panel: #ffffff;
-  --ink: #14231d;
-  --accent: #1f7a62;
-  --accent-2: #e08e3c;
-  --line: #d6e2dc;
+  --ink: #0b132b;
+  --ink-soft: #405069;
+  --accent: #1769ff;
+  --accent-2: #14b8a6;
+  --line: #dce3ef;
+  --danger: #e11d48;
+  --success: #0f766e;
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: "Manrope", "Segoe UI", sans-serif;
   color: var(--ink);
-  background: radial-gradient(circle at 10% 0%, #d9efe3 0%, var(--bg) 40%, #edf5f0 100%);
+  background: linear-gradient(170deg, #f8fbff 0%, #f4f7fb 48%, #eef4ff 100%);
 }
 
 .bg-shape {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: repeating-linear-gradient(45deg, transparent, transparent 16px, rgba(31, 122, 98, 0.03) 16px, rgba(31, 122, 98, 0.03) 18px);
+  background: radial-gradient(circle at 15% 20%, rgba(23, 105, 255, 0.06) 0 20%, transparent 55%),
+              radial-gradient(circle at 80% 10%, rgba(20, 184, 166, 0.08) 0 16%, transparent 50%);
+}
+
+.bg-orb {
+  position: fixed;
+  border-radius: 999px;
+  filter: blur(30px);
+  opacity: 0.25;
+  z-index: -1;
+}
+
+.orb-1 {
+  width: 340px;
+  height: 340px;
+  background: #8bc4ff;
+  top: -120px;
+  right: -70px;
+}
+
+.orb-2 {
+  width: 280px;
+  height: 280px;
+  background: #8ef0e6;
+  bottom: -90px;
+  left: -80px;
 }
 
 .site-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.85);
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(220, 227, 239, 0.8);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
+  z-index: 10;
 }
 
-nav { display: flex; gap: 1rem; align-items: center; }
-a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.brand {
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-decoration: none;
+}
+
+.brand strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.brand small {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.brand-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.main-nav { display: flex; gap: 0.4rem; align-items: center; }
+
+a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: 700;
+  padding: 0.48rem 0.72rem;
+  border-radius: 10px;
+}
+
+a:hover {
+  background: #edf3ff;
+  color: var(--accent);
+}
 
 .container { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04);
+  border-radius: 18px;
+  padding: 1.2rem;
+  box-shadow: 0 12px 26px rgba(11, 19, 43, 0.06);
+  margin-bottom: 1rem;
 }
 .panel.narrow { max-width: 420px; margin: 2rem auto; }
+.hero h2 { margin-bottom: 0.2rem; }
+.muted { color: var(--ink-soft); margin-top: 0; }
+
+.alert {
+  margin-top: 0.7rem;
+  border-radius: 12px;
+  padding: 0.65rem 0.8rem;
+  font-weight: 700;
+}
+
+.alert.success {
+  color: var(--success);
+  background: #ecfdf5;
+  border: 1px solid #99f6e4;
+}
+
+.alert.error {
+  color: var(--danger);
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+}
 
 .form-grid {
   display: grid;
   gap: 0.8rem;
 }
 
+.settings-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.8rem;
+  margin: 0;
+}
+
+legend {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  padding: 0 0.4rem;
+}
+
+.two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 label { display: grid; gap: 0.3rem; font-weight: 600; }
 input, button {
-  padding: 0.7rem;
-  border-radius: 8px;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
   border: 1px solid var(--line);
+  font: inherit;
 }
+
+input:focus {
+  outline: 2px solid rgba(23, 105, 255, 0.2);
+  border-color: var(--accent);
+}
+
 button {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), #2d88ff);
   color: white;
   border: none;
   font-weight: 700;
   cursor: pointer;
+}
+
+button:hover { filter: brightness(0.95); }
+
+.btn-primary { min-height: 42px; }
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.stack-gap > * + * { margin-top: 0.8rem; }
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.service-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.8rem;
+  background: linear-gradient(165deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.service-card p {
+  margin: 0.5rem 0 0.8rem;
+}
+
+.status-pill {
+  display: inline-block;
+  background: #eef4ff;
+  border: 1px solid #d6e5ff;
+  color: #1348a6;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
 }
 
 table { width: 100%; border-collapse: collapse; }
@@ -74,10 +235,62 @@ th, td {
   font-size: 0.92rem;
 }
 
+th {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #4a5c7a;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
 .inline-form { display: inline; }
-.health-list { line-height: 1.9; }
+
+.health-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.health-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #fafcff;
+}
+
+.health-card h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.health-state {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin: 0.45rem 0 0.3rem;
+}
+
+.health-state.ok { color: var(--success); }
+.health-state.bad { color: var(--danger); }
+
+.site-footer {
+  text-align: center;
+  color: #5f7190;
+  font-size: 0.85rem;
+  padding: 1rem;
+}
 
 @media (max-width: 800px) {
   .site-header { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
-  table { display: block; overflow-x: auto; }
+  .service-grid,
+  .two-col,
+  .health-grid {
+    grid-template-columns: 1fr;
+  }
 }

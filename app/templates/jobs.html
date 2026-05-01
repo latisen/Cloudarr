@@ -2,6 +2,8 @@
 {% block content %}
 <section class="panel">
   <h2>Jobs</h2>
+  <p class="muted">Current and historical Sonarr submissions processed by Cloudarr.</p>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -15,6 +17,7 @@
       </tr>
     </thead>
     <tbody>
+    {% if jobs %}
     {% for job in jobs %}
       <tr>
         <td>{{ job.info_hash }}</td>
@@ -26,7 +29,13 @@
         <td>{{ job.exported_path or job.save_path }}</td>
       </tr>
     {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="7">No jobs found yet.</td>
+      </tr>
+    {% endif %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endblock %}

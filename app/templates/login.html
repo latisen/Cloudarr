@@ -2,6 +2,7 @@
 {% block content %}
 <section class="panel narrow">
   <h2>Admin Login</h2>
+  <p class="muted">Authenticate to manage jobs, provider settings, and system services.</p>
   <form method="post" action="/login" class="form-grid">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
     <label>Username
@@ -10,7 +11,7 @@
     <label>Password
       <input name="password" type="password" required />
     </label>
-    <button type="submit">Sign In</button>
+    <button type="submit" class="btn-primary">Sign In</button>
   </form>
 </section>
 {% endblock %}

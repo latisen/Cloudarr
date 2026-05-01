@@ -2,13 +2,29 @@
 {% block content %}
 <section class="panel">
   <h2>Health</h2>
-  <ul class="health-list">
-    <li>Database: {{ "OK" if health.database.ok else "FAIL" }} ({{ health.database.message }})</li>
-    <li>Mount: {{ "OK" if health.mount.ok else "FAIL" }} ({{ health.mount.message }})</li>
-    <li>Provider: {{ "OK" if health.provider.ok else "FAIL" }} ({{ health.provider.message }})</li>
-    <li>Worker Running: {{ health.worker.running }}</li>
-    <li>Active Jobs: {{ health.worker.active_jobs }}</li>
-    <li>Last Refresh: {{ health.last_successful_webdav_refresh or "n/a" }}</li>
-  </ul>
+  <p class="muted">Live status for runtime dependencies and worker queue.</p>
+  <div class="health-grid">
+    <article class="health-card">
+      <h4>Database</h4>
+      <p class="health-state {{ 'ok' if health.database.ok else 'bad' }}">{{ "OK" if health.database.ok else "FAIL" }}</p>
+      <small>{{ health.database.message }}</small>
+    </article>
+    <article class="health-card">
+      <h4>Mount</h4>
+      <p class="health-state {{ 'ok' if health.mount.ok else 'bad' }}">{{ "OK" if health.mount.ok else "FAIL" }}</p>
+      <small>{{ health.mount.message }}</small>
+    </article>
+    <article class="health-card">
+      <h4>Provider</h4>
+      <p class="health-state {{ 'ok' if health.provider.ok else 'bad' }}">{{ "OK" if health.provider.ok else "FAIL" }}</p>
+      <small>{{ health.provider.message }}</small>
+    </article>
+    <article class="health-card">
+      <h4>Worker</h4>
+      <p class="health-state {{ 'ok' if health.worker.running else 'bad' }}">{{ 'running' if health.worker.running else 'stopped' }}</p>
+      <small>Active jobs: {{ health.worker.active_jobs }}</small>
+    </article>
+  </div>
+  <p class="muted">Last WebDAV Refresh: {{ health.last_successful_webdav_refresh or "n/a" }}</p>
 </section>
 {% endblock %}

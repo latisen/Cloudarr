@@ -61,8 +61,12 @@ class Runtime:
             )
             self.settings.webdav_password = store.get_secret("webdav_password") or self.settings.webdav_password
             self.settings.qbit_password = store.get_secret("qbit_password") or self.settings.qbit_password
+            self.settings.admin_password = store.get_secret("admin_password") or self.settings.admin_password
 
             self.settings.provider_name = store.get("provider_name", self.settings.provider_name) or self.settings.provider_name
+            self.settings.default_category = (
+                store.get("default_category", self.settings.default_category) or self.settings.default_category
+            )
             self.settings.webdav_url = store.get("webdav_url", self.settings.webdav_url) or self.settings.webdav_url
             self.settings.webdav_username = (
                 store.get("webdav_username", self.settings.webdav_username) or self.settings.webdav_username
@@ -72,6 +76,9 @@ class Runtime:
             )
             self.settings.symlink_staging_root = (
                 store.get("symlink_staging_root", self.settings.symlink_staging_root) or self.settings.symlink_staging_root
+            )
+            self.settings.webdav_remote_root = (
+                store.get("webdav_remote_root", self.settings.webdav_remote_root) or self.settings.webdav_remote_root
             )
             self.settings.webdav_refresh_command = (
                 store.get("webdav_refresh_command", self.settings.webdav_refresh_command)
@@ -85,6 +92,20 @@ class Runtime:
             self.settings.realdebrid_api_base = (
                 store.get("realdebrid_api_base", self.settings.realdebrid_api_base) or self.settings.realdebrid_api_base
             )
+            self.settings.torbox_api_base = (
+                store.get("torbox_api_base", self.settings.torbox_api_base) or self.settings.torbox_api_base
+            )
+            self.settings.torbox_torrents_path = (
+                store.get("torbox_torrents_path", self.settings.torbox_torrents_path)
+                or self.settings.torbox_torrents_path
+            )
+            self.settings.torbox_mylist_path = (
+                store.get("torbox_mylist_path", self.settings.torbox_mylist_path) or self.settings.torbox_mylist_path
+            )
+            self.settings.torbox_health_path = (
+                store.get("torbox_health_path", self.settings.torbox_health_path) or self.settings.torbox_health_path
+            )
+            self.settings.admin_user = store.get("admin_user", self.settings.admin_user) or self.settings.admin_user
             self.settings.qbit_username = store.get("qbit_username", self.settings.qbit_username) or self.settings.qbit_username
             qbit_require_auth = store.get("qbit_require_auth")
             if qbit_require_auth is not None:
