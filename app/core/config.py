@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     secret_key: str = "dev-secret"
+    session_https_only: bool = False
     admin_user: str = "admin"
     admin_password: str = "admin"
 

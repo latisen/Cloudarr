@@ -52,7 +52,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=settings.secret_key,
     same_site="lax",
-    https_only=settings.env == "production",
+    https_only=settings.session_https_only,
 )
 app.add_middleware(
     CORSMiddleware,

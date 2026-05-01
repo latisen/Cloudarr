@@ -271,7 +271,7 @@ vendor = other
 user =
 pass =
 EOF
-    chown root:root /etc/rclone/rclone.conf
+    chown cloudarr:cloudarr /etc/rclone/rclone.conf
     chmod 600 /etc/rclone/rclone.conf
   fi
 }
