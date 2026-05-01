@@ -41,18 +41,47 @@ class WebDavMountManager:
     def _resolve_fallback_limited(self, rel: str) -> Path | None:
         """Fallback filename search with bounded directory traversal.
 
-        This avoids unbounded rglob() walks on large mounts that can stall the worker.
+        Strategy:
+        1. First do a cheap first-level scan in remote_root directories whose name
+           shares the file stem. This handles the common case where Real-Debrid places
+           a torrent file inside a same-named folder (e.g. Foo.mkv lives at
+           torrents/Foo[rarbg]/Foo.mkv).
+        2. Fall back to a bounded full walk if the targeted scan fails.
         """
 
         name = Path(rel).name
         if not name:
             return None
 
+        stem_lower = Path(name).stem.lower()
+
         roots: list[Path] = []
         if self._remote_root:
             roots.append(self.mount_path / self._remote_root)
         roots.append(self.mount_path)
 
+        # --- Pass 1: prioritised scan in matching first-level subdirs ---
+        for root in roots:
+            if not root.exists() or not root.is_dir():
+                continue
+            try:
+                for entry in root.iterdir():
+                    if not entry.is_dir():
+                        continue
+                    if stem_lower not in entry.name.lower():
+                        continue
+                    # Look for the target file inside this matching subdir
+                    try:
+                        lower_map = {f.name.lower(): f for f in entry.iterdir() if f.is_file()}
+                        matched = lower_map.get(name.lower())
+                        if matched:
+                            return matched
+                    except OSError:
+                        continue
+            except OSError:
+                continue
+
+        # --- Pass 2: bounded full walk ---
         max_entries = self.settings.webdav_fallback_search_max_entries
         visited_entries = 0
         seen: set[Path] = set()
