@@ -38,6 +38,9 @@ class WebDavMountManager:
         except subprocess.CalledProcessError as exc:
             return False, (exc.stderr or exc.stdout or str(exc)).strip()
 
+    def _normalize_name(self, value: str) -> str:
+        return "".join(char for char in value.lower() if char.isalnum())
+
     def _resolve_fallback_limited(self, rel: str) -> Path | None:
         """Fallback filename search with bounded directory traversal.
 
@@ -54,6 +57,8 @@ class WebDavMountManager:
             return None
 
         stem_lower = Path(name).stem.lower()
+        stem_normalized = self._normalize_name(Path(name).stem)
+        name_normalized = self._normalize_name(name)
 
         roots: list[Path] = []
         if self._remote_root:
@@ -68,14 +73,18 @@ class WebDavMountManager:
                 for entry in root.iterdir():
                     if not entry.is_dir():
                         continue
-                    if stem_lower not in entry.name.lower():
+                    entry_name_lower = entry.name.lower()
+                    entry_name_normalized = self._normalize_name(entry.name)
+                    if stem_lower not in entry_name_lower and stem_normalized not in entry_name_normalized:
                         continue
                     # Look for the target file inside this matching subdir
                     try:
-                        lower_map = {f.name.lower(): f for f in entry.iterdir() if f.is_file()}
-                        matched = lower_map.get(name.lower())
-                        if matched:
-                            return matched
+                        for child in entry.iterdir():
+                            if not child.is_file():
+                                continue
+                            child_name = child.name.lower()
+                            if child_name == name.lower() or self._normalize_name(child.name) == name_normalized:
+                                return child
                     except OSError:
                         continue
             except OSError:
@@ -108,6 +117,10 @@ class WebDavMountManager:
                     matched = lower_map.get(name.lower())
                     if matched:
                         return Path(current_root) / matched
+
+                    for entry in files:
+                        if self._normalize_name(entry) == name_normalized:
+                            return Path(current_root) / entry
             except OSError:
                 continue
 

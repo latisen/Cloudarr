@@ -129,6 +129,37 @@ async def test_refresh_visibility_resolves_filename_case_insensitive(tmp_path: P
     assert msg == "resolved_relative_path=/links/Series/Andor.S01E02.REPACK.2160p.WEB.h265-KOGi.mkv"
 
 
+@pytest.mark.asyncio
+async def test_refresh_visibility_resolves_space_separated_remote_path_to_dot_release_layout(tmp_path: Path) -> None:
+    settings = Settings(
+        webdav_mount_path=str(tmp_path),
+        webdav_remote_root="",
+        refresh_max_attempts=1,
+        refresh_retry_seconds=0,
+        webdav_refresh_command="true",
+        webdav_remount_command="false",
+    )
+    manager = WebDavMountManager(settings)
+
+    target = (
+        tmp_path
+        / "torrents"
+        / "Andor.S01E04.Aldhani.UHD.BluRay.2160p.TrueHD.Atmos.7.1.DV.HEVC.HYBRID.REMUX-FraMeSToR"
+        / "andor.s01e04.aldhani.uhd.bluray.2160p.truehd.atmos.7.1.dv.hevc.hybrid.remux-framestor.mkv"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.touch()
+
+    ok, msg = await manager.ensure_remote_path_visible(
+        "/Andor S01E04 Aldhani UHD BluRay 2160p TrueHD Atmos 7 1 DV HEVC HYBRID REMUX-FraMeSToR.mkv"
+    )
+    assert ok
+    assert (
+        msg
+        == "resolved_relative_path=/torrents/Andor.S01E04.Aldhani.UHD.BluRay.2160p.TrueHD.Atmos.7.1.DV.HEVC.HYBRID.REMUX-FraMeSToR/andor.s01e04.aldhani.uhd.bluray.2160p.truehd.atmos.7.1.dv.hevc.hybrid.remux-framestor.mkv"
+    )
+
+
 def test_run_shell_times_out(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     settings = Settings(
         webdav_mount_path=str(tmp_path),
