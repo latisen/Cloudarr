@@ -293,6 +293,49 @@ async def settings_save(
     return RedirectResponse(url="/settings?saved=1", status_code=303)
 
 
+@router.post("/jobs/retry")
+async def retry_job(
+    request: Request,
+    job_id: str = Form(...),
+    csrf_token: str = Form(...),
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(get_settings),
+) -> RedirectResponse:
+    """Reset a failed job to QUEUED state for retry."""
+    _require_dashboard_auth(request)
+    DashboardAuth.validate_csrf(request, csrf_token)
+
+    try:
+        stmt = select(JobEvent).where(JobEvent.id == job_id)
+        job = db.scalars(stmt).first()
+        if not job:
+            return RedirectResponse(
+                url="/jobs?error=Job+not+found",
+                status_code=303,
+            )
+        from app.models.job import JobState
+
+        if job.state in [JobState.COMPLETED.value, JobState.FAILED.value, JobState.NEEDS_ATTENTION.value]:
+            job.state = JobState.QUEUED.value
+            job.error_message = None
+            job.retries = 0
+            db.add(job)
+            db.commit()
+            return RedirectResponse(
+                url="/jobs?retry_result=ok",
+                status_code=303,
+            )
+        return RedirectResponse(
+            url="/jobs?error=Can+only+retry+failed+or+completed+jobs",
+            status_code=303,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return RedirectResponse(
+            url=f"/jobs?error={quote_plus(str(exc)[:80])}",
+            status_code=303,
+        )
+
+
 @router.post("/settings/service-action")
 async def service_action(
     request: Request,

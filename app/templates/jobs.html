@@ -3,6 +3,16 @@
 <section class="panel">
   <h2>Jobs</h2>
   <p class="muted">Current and historical Sonarr submissions processed by Cloudarr.</p>
+  {% if request.query_params.get('retry_result') == 'ok' %}
+    <div style="background: #d4edda; color: #155724; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+      Job queued for retry
+    </div>
+  {% endif %}
+  {% if request.query_params.get('error') %}
+    <div style="background: #f8d7da; color: #721c24; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+      {{ request.query_params.get('error') }}
+    </div>
+  {% endif %}
   <div class="table-wrap">
   <table>
     <thead>
@@ -14,6 +24,7 @@
         <th>TorBox</th>
         <th>Progress</th>
         <th>Export Path</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -27,11 +38,20 @@
         <td>{{ job.torbox_job_id or "-" }}</td>
         <td>{{ "%.0f"|format(job.progress*100) }}%</td>
         <td>{{ job.exported_path or job.save_path }}</td>
+        <td>
+          {% if job.state in ['FAILED', 'NEEDS_ATTENTION', 'COMPLETED'] %}
+            <form method="post" action="/jobs/retry" style="display: inline;">
+              <input type="hidden" name="job_id" value="{{ job.id }}" />
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+              <button type="submit" style="padding: 4px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Retry</button>
+            </form>
+          {% endif %}
+        </td>
       </tr>
     {% endfor %}
     {% else %}
       <tr>
-        <td colspan="7">No jobs found yet.</td>
+        <td colspan="8">No jobs found yet.</td>
       </tr>
     {% endif %}
     </tbody>
