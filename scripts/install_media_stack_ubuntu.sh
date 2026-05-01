@@ -15,6 +15,10 @@ RCLONE_DIR="/etc/rclone"
 SONARR_USER="sonarr"
 RADARR_USER="radarr"
 CLOUDARR_USER="cloudarr"
+PLEX_USER="plex"
+MEDIA_GROUP="media"
+TV_ROOT="/data/tv"
+MOVIES_ROOT="/data/filmer"
 
 MEDIA_ROOT="/srv/media"
 DOWNLOAD_ROOT="${MEDIA_ROOT}/data/downloads"
@@ -106,10 +110,23 @@ ensure_users() {
   id -u "$SONARR_USER" >/dev/null 2>&1 || useradd --system --create-home --home /var/lib/sonarr --shell /usr/sbin/nologin "$SONARR_USER"
   id -u "$RADARR_USER" >/dev/null 2>&1 || useradd --system --create-home --home /var/lib/radarr --shell /usr/sbin/nologin "$RADARR_USER"
   id -u "$CLOUDARR_USER" >/dev/null 2>&1 || useradd --system --create-home --home /opt/cloudarr --shell /usr/sbin/nologin "$CLOUDARR_USER"
+
+  # Shared media group so Plex, Sonarr, Radarr and Cloudarr can all read /data
+  groupadd -f "$MEDIA_GROUP"
+  usermod -aG "$MEDIA_GROUP" "$SONARR_USER"
+  usermod -aG "$MEDIA_GROUP" "$RADARR_USER"
+  usermod -aG "$MEDIA_GROUP" "$CLOUDARR_USER"
 }
 
 prepare_paths() {
   log "Preparing filesystem paths"
+
+  # Media library roots
+  mkdir -p "$TV_ROOT" "$MOVIES_ROOT"
+  chown -R root:"$MEDIA_GROUP" "$TV_ROOT" "$MOVIES_ROOT"
+  chmod 775 "$TV_ROOT" "$MOVIES_ROOT"
+  chmod g+s "$TV_ROOT" "$MOVIES_ROOT"  # new files inherit media group
+
   mkdir -p "$MEDIA_ROOT/config/sonarr" "$MEDIA_ROOT/config/radarr"
   mkdir -p "$SONARR_DOWNLOADS" "$RADARR_DOWNLOADS"
   mkdir -p "$MOUNT_ROOT" "$MOUNT_ROOT/imports"
@@ -216,12 +233,12 @@ CLOUDARR_WEBDAV_USERNAME=
 CLOUDARR_WEBDAV_PASSWORD=
 CLOUDARR_WEBDAV_MOUNT_PATH=/mnt/debrid
 CLOUDARR_WEBDAV_REMOTE_ROOT=torrents
-CLOUDARR_SYMLINK_STAGING_ROOT=${SONARR_DOWNLOADS}
+CLOUDARR_SYMLINK_STAGING_ROOT=${DOWNLOAD_ROOT}
 CLOUDARR_TORRENT_CACHE_DIR=/var/lib/cloudarr/torrents
 
 CLOUDARR_WEBDAV_REFRESH_COMMAND=rclone rc vfs/refresh recursive=true
 CLOUDARR_WEBDAV_REMOUNT_COMMAND=sudo systemctl restart debrid-rclone-mount.service
-CLOUDARR_POLL_INTERVAL_SECONDS=15
+CLOUDARR_POLL_INTERVAL_SECONDS=3
 CLOUDARR_MAX_SUBMIT_RETRIES=6
 CLOUDARR_ENABLE_EMBEDDED_WORKER=false
 EOF
@@ -234,6 +251,26 @@ EOF
   sed -i 's#/mnt/torbox#/mnt/debrid#g' /etc/systemd/system/cloudarr-worker.service
   sed -i 's#/srv/torbox-arr#/srv/media/data/downloads#g' /etc/systemd/system/cloudarr-api.service
   sed -i 's#/srv/torbox-arr#/srv/media/data/downloads#g' /etc/systemd/system/cloudarr-worker.service
+}
+
+install_plex() {
+  log "Installing Plex Media Server"
+
+  # Add Plex apt repository
+  curl -fsSL https://downloads.plex.tv/plex-keys/PlexSign.key | gpg --dearmor -o /usr/share/keyrings/plex-archive-keyring.gpg
+  echo 'deb [signed-by=/usr/share/keyrings/plex-archive-keyring.gpg] https://downloads.plex.tv/repo/deb public main' \
+    >/etc/apt/sources.list.d/plexmediaserver.list
+  apt-get update
+  apt-get install -y plexmediaserver
+
+  # plex user is created by the package; add it to media group
+  usermod -aG "$MEDIA_GROUP" "$PLEX_USER"
+
+  cat >/etc/systemd/system/plexmediaserver.service.d/override.conf <<'EOF'
+[Service]
+# Give Plex access to /data via the media group (set by groupadd above)
+SupplementaryGroups=media
+EOF
 }
 
 install_rclone_mount_service() {
@@ -281,11 +318,13 @@ install_sudoers_for_dashboard() {
   cat >/etc/sudoers.d/cloudarr-services <<'EOF'
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl restart sonarr.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl restart radarr.service
+cloudarr ALL=(root) NOPASSWD: /bin/systemctl restart plexmediaserver.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl restart cloudarr-api.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl restart cloudarr-worker.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl restart debrid-rclone-mount.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl is-active sonarr.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl is-active radarr.service
+cloudarr ALL=(root) NOPASSWD: /bin/systemctl is-active plexmediaserver.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl is-active cloudarr-api.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl is-active cloudarr-worker.service
 cloudarr ALL=(root) NOPASSWD: /bin/systemctl is-active debrid-rclone-mount.service
@@ -296,7 +335,7 @@ EOF
 enable_services() {
   log "Enabling and starting services"
   systemctl daemon-reload
-  systemctl enable sonarr.service radarr.service debrid-rclone-mount.service cloudarr-api.service cloudarr-worker.service
+  systemctl enable sonarr.service radarr.service plexmediaserver.service debrid-rclone-mount.service cloudarr-api.service cloudarr-worker.service
 
   local mount_ready="false"
   if rclone --config /etc/rclone/rclone.conf listremotes 2>/dev/null | grep -q '^realdebrid:$'; then
@@ -312,7 +351,7 @@ enable_services() {
     log "Create it and run: sudo systemctl restart debrid-rclone-mount.service"
   fi
 
-  systemctl restart sonarr.service radarr.service cloudarr-api.service cloudarr-worker.service
+  systemctl restart sonarr.service radarr.service plexmediaserver.service cloudarr-api.service cloudarr-worker.service
 
   if [[ "$mount_ready" != "true" ]]; then
     log "WARNING: Core services are running, but WebDAV mount is not active yet."
@@ -329,10 +368,13 @@ Next steps:
 2. Edit /etc/cloudarr/cloudarr.env for API keys and credentials.
 3. Restart services:
    sudo systemctl restart debrid-rclone-mount.service cloudarr-api.service cloudarr-worker.service sonarr.service radarr.service
-4. Open:
-   Sonarr: http://<server-ip>:8989
-   Radarr: http://<server-ip>:7878
+4. In Sonarr: Settings → Media Management → Root Folders → /data/tv
+   In Radarr:  Settings → Media Management → Root Folders → /data/filmer
+5. Open:
+   Sonarr:  http://<server-ip>:8989
+   Radarr:  http://<server-ip>:7878
    Cloudarr: http://<server-ip>:8080
+   Plex:    http://<server-ip>:32400/web
 
 EOF
 }
@@ -343,6 +385,7 @@ ensure_users
 prepare_paths
 install_sonarr
 install_radarr
+install_plex
 install_cloudarr
 install_rclone_mount_service
 install_sudoers_for_dashboard
