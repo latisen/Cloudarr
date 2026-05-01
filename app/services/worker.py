@@ -128,6 +128,25 @@ class JobWorker:
             .limit(1)
         )
 
+    def _is_export_path_consumed(self, exported_path: str | None) -> bool:
+        """Best-effort check for whether Sonarr has consumed/removing staged links.
+
+        If the export path is missing, or has no files/symlinks left, treat it as consumed.
+        """
+
+        if not exported_path:
+            return False
+        base = Path(exported_path)
+        if not base.exists():
+            return True
+        if not base.is_dir():
+            return False
+
+        for entry in base.rglob("*"):
+            if entry.is_symlink() or entry.is_file():
+                return False
+        return True
+
     async def _process_job(self, db: Session, service: JobService, job: Job) -> None:
         state = JobState(job.state)
 
@@ -389,6 +408,35 @@ class JobWorker:
             db.commit()
             db.refresh(job)
             self._transition_or_log(db, service, job, JobState.READY_FOR_IMPORT, message="Ready for Sonarr import")
+            return
+
+        if state == JobState.READY_FOR_IMPORT:
+            # Sonarr may keep or delete the staged links depending on import settings.
+            # Auto-close after a grace period so dashboard jobs don't remain stuck forever.
+            ready_since = self._state_entered_at(db, job.id, JobState.READY_FOR_IMPORT) or job.updated_at
+            age_seconds = (dt.datetime.utcnow() - ready_since).total_seconds()
+
+            if self._is_export_path_consumed(job.exported_path):
+                self._transition_or_log(
+                    db,
+                    service,
+                    job,
+                    JobState.IMPORTED_OPTIONAL_DETECTED,
+                    message="Import detected from consumed staging path",
+                )
+                return
+
+            if age_seconds >= self._settings.ready_for_import_autocomplete_seconds:
+                self._transition_or_log(
+                    db,
+                    service,
+                    job,
+                    JobState.IMPORTED_OPTIONAL_DETECTED,
+                    message=(
+                        "Auto-completed after READY_FOR_IMPORT grace period "
+                        f"({int(age_seconds)}s)"
+                    ),
+                )
 
     def active_jobs_count(self) -> int:
         db: Session = self._db_factory()

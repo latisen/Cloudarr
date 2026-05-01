@@ -19,7 +19,6 @@ class JobState(StrEnum):
 
 
 TERMINAL_STATES: set[JobState] = {
-    JobState.READY_FOR_IMPORT,
     JobState.IMPORTED_OPTIONAL_DETECTED,
     JobState.FAILED,
 }
