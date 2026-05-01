@@ -187,6 +187,8 @@ spec:
       labels:
         app: cloudarr
         component: worker
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/worker: unconfined
     spec:
       securityContext:
         runAsUser: 1000
@@ -244,6 +246,9 @@ spec:
             runAsUser: 0
             runAsGroup: 0
             privileged: true
+            allowPrivilegeEscalation: true
+            seccompProfile:
+              type: Unconfined
             capabilities:
               add:
                 - SYS_ADMIN
@@ -299,8 +304,8 @@ spec:
               mountPath: /config
             - name: media-data
               mountPath: /data
-            - name: media-debrid
-              mountPath: /mnt/debrid
+            - name: media-mnt
+              mountPath: /mnt
               mountPropagation: Bidirectional
             - name: fuse-device
               mountPath: /dev/fuse
@@ -320,9 +325,9 @@ spec:
           hostPath:
             path: /srv/media/data
             type: DirectoryOrCreate
-        - name: media-debrid
+        - name: media-mnt
           hostPath:
-            path: /srv/media/mnt/debrid
+            path: /srv/media/mnt
             type: DirectoryOrCreate
         - name: fuse-device
           hostPath:
