@@ -23,7 +23,7 @@ RADARR_DOWNLOADS="${DOWNLOAD_ROOT}/radarr"
 MOUNT_ROOT="${MEDIA_ROOT}/mnt/debrid"
 
 SONARR_VERSION_URL="https://services.sonarr.tv/v1/download/main/latest?version=4&os=linux&arch=x64"
-RADARR_VERSION_URL="https://radarr.servarr.com/v1/update/master/updatefile?version=latest&os=linux&runtime=netcore&arch=x64"
+RADARR_VERSION_URL="https://radarr.servarr.com/v1/update/master/updatefile?os=linux&runtime=netcore&arch=x64"
 
 log() {
   echo "[install-media-stack] $*"
