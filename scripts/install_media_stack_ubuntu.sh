@@ -45,6 +45,7 @@ install_packages() {
     wget \
     ca-certificates \
     tar \
+    unzip \
     sqlite3 \
     acl \
     rclone \
@@ -53,6 +54,51 @@ install_packages() {
     python3-pip \
     mediainfo \
     libchromaprint-tools
+}
+
+download_archive() {
+  local url="$1"
+  local out="$2"
+  local name="$3"
+
+  log "Downloading ${name}"
+  if ! curl -fL --retry 5 --retry-delay 2 --connect-timeout 20 -A "Cloudarr Installer" "$url" -o "$out"; then
+    echo "Failed downloading ${name} from: ${url}"
+    exit 1
+  fi
+}
+
+extract_archive() {
+  local archive="$1"
+  local destination="$2"
+  local name="$3"
+
+  rm -rf "$destination"
+  mkdir -p "$destination"
+
+  if tar -tzf "$archive" >/dev/null 2>&1; then
+    tar -xzf "$archive" -C "$destination" --strip-components=1
+    return
+  fi
+
+  if unzip -tqq "$archive" >/dev/null 2>&1; then
+    unzip -q "$archive" -d "$destination"
+    if [[ -d "$destination/Sonarr" ]]; then
+      mv "$destination/Sonarr"/* "$destination"/
+      rmdir "$destination/Sonarr" || true
+    fi
+    if [[ -d "$destination/Radarr" ]]; then
+      mv "$destination/Radarr"/* "$destination"/
+      rmdir "$destination/Radarr" || true
+    fi
+    return
+  fi
+
+  echo "Downloaded ${name} is not a valid tar.gz or zip archive."
+  echo "First bytes of file:"
+  head -c 200 "$archive" | tr -dc '[:print:]\n' || true
+  echo
+  exit 1
 }
 
 ensure_users() {
@@ -84,10 +130,8 @@ install_sonarr() {
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
 
-  wget -qO "$tmp/sonarr.tar.gz" "$SONARR_VERSION_URL"
-  rm -rf /opt/Sonarr
-  mkdir -p /opt/Sonarr
-  tar -xzf "$tmp/sonarr.tar.gz" -C /opt/Sonarr --strip-components=1
+  download_archive "$SONARR_VERSION_URL" "$tmp/sonarr.archive" "Sonarr"
+  extract_archive "$tmp/sonarr.archive" "/opt/Sonarr" "Sonarr"
   chown -R "$SONARR_USER":"$SONARR_USER" /opt/Sonarr
 
   cat >/etc/systemd/system/sonarr.service <<'EOF'
@@ -115,10 +159,8 @@ install_radarr() {
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
 
-  wget -qO "$tmp/radarr.tar.gz" "$RADARR_VERSION_URL"
-  rm -rf /opt/Radarr
-  mkdir -p /opt/Radarr
-  tar -xzf "$tmp/radarr.tar.gz" -C /opt/Radarr --strip-components=1
+  download_archive "$RADARR_VERSION_URL" "$tmp/radarr.archive" "Radarr"
+  extract_archive "$tmp/radarr.archive" "/opt/Radarr" "Radarr"
   chown -R "$RADARR_USER":"$RADARR_USER" /opt/Radarr
 
   cat >/etc/systemd/system/radarr.service <<'EOF'
