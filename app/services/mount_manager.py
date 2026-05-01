@@ -41,6 +41,27 @@ class WebDavMountManager:
     def _normalize_name(self, value: str) -> str:
         return "".join(char for char in value.lower() if char.isalnum())
 
+    def _names_match(self, expected: str, actual: str) -> bool:
+        expected_normalized = self._normalize_name(expected)
+        actual_normalized = self._normalize_name(actual)
+        return (
+            expected.lower() == actual.lower()
+            or expected_normalized == actual_normalized
+            or expected_normalized in actual_normalized
+            or actual_normalized in expected_normalized
+        )
+
+    def _file_names_match(self, expected: str, actual: str) -> bool:
+        if self._names_match(expected, actual):
+            return True
+
+        expected_path = Path(expected)
+        actual_path = Path(actual)
+        return (
+            expected_path.suffix.lower() == actual_path.suffix.lower()
+            and self._names_match(expected_path.stem, actual_path.stem)
+        )
+
     def _resolve_fallback_limited(self, rel: str) -> Path | None:
         """Fallback filename search with bounded directory traversal.
 
@@ -63,6 +84,8 @@ class WebDavMountManager:
         roots: list[Path] = []
         if self._remote_root:
             roots.append(self.mount_path / self._remote_root)
+            roots.append(self.mount_path / self._remote_root / "torrents")
+        roots.append(self.mount_path / "torrents")
         roots.append(self.mount_path)
 
         # --- Pass 1: prioritised scan in matching first-level subdirs ---
@@ -75,15 +98,18 @@ class WebDavMountManager:
                         continue
                     entry_name_lower = entry.name.lower()
                     entry_name_normalized = self._normalize_name(entry.name)
-                    if stem_lower not in entry_name_lower and stem_normalized not in entry_name_normalized:
+                    if (
+                        stem_lower not in entry_name_lower
+                        and stem_normalized not in entry_name_normalized
+                        and not self._names_match(Path(name).stem, entry.name)
+                    ):
                         continue
                     # Look for the target file inside this matching subdir
                     try:
                         for child in entry.iterdir():
                             if not child.is_file():
                                 continue
-                            child_name = child.name.lower()
-                            if child_name == name.lower() or self._normalize_name(child.name) == name_normalized:
+                            if self._file_names_match(name, child.name):
                                 return child
                     except OSError:
                         continue
@@ -119,7 +145,7 @@ class WebDavMountManager:
                         return Path(current_root) / matched
 
                     for entry in files:
-                        if self._normalize_name(entry) == name_normalized:
+                        if self._file_names_match(name, entry):
                             return Path(current_root) / entry
             except OSError:
                 continue
