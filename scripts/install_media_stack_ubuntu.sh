@@ -261,6 +261,19 @@ EOF
   cat >/etc/fuse.conf <<'EOF'
 user_allow_other
 EOF
+
+  if [[ ! -f /etc/rclone/rclone.conf ]]; then
+    cat >/etc/rclone/rclone.conf <<'EOF'
+[realdebrid]
+type = webdav
+url = https://dav.real-debrid.com/
+vendor = other
+user =
+pass =
+EOF
+    chown root:root /etc/rclone/rclone.conf
+    chmod 600 /etc/rclone/rclone.conf
+  fi
 }
 
 install_sudoers_for_dashboard() {
@@ -284,8 +297,26 @@ enable_services() {
   log "Enabling and starting services"
   systemctl daemon-reload
   systemctl enable sonarr.service radarr.service debrid-rclone-mount.service cloudarr-api.service cloudarr-worker.service
-  systemctl restart debrid-rclone-mount.service
+
+  local mount_ready="false"
+  if rclone --config /etc/rclone/rclone.conf listremotes 2>/dev/null | grep -q '^realdebrid:$'; then
+    if systemctl restart debrid-rclone-mount.service; then
+      mount_ready="true"
+    else
+      log "WARNING: debrid-rclone-mount.service failed to start."
+      log "Check: systemctl status debrid-rclone-mount.service"
+      log "Check: journalctl -xeu debrid-rclone-mount.service"
+    fi
+  else
+    log "WARNING: rclone remote 'realdebrid' is missing in /etc/rclone/rclone.conf"
+    log "Create it and run: sudo systemctl restart debrid-rclone-mount.service"
+  fi
+
   systemctl restart sonarr.service radarr.service cloudarr-api.service cloudarr-worker.service
+
+  if [[ "$mount_ready" != "true" ]]; then
+    log "WARNING: Core services are running, but WebDAV mount is not active yet."
+  fi
 }
 
 print_next_steps() {
